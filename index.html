@@ -42,6 +42,15 @@
     user-select:none; }
   .btn:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 12px 32px rgba(20,80,180,.8); }
   .btn:active { transform:scale(.97); }
+  .btn-ghost { padding:10px 34px; font-size:16px; letter-spacing:3px;
+    background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.4);
+    box-shadow:none; backdrop-filter:blur(4px); }
+  .btn-ghost:hover { background:rgba(255,255,255,.22); box-shadow:0 6px 18px rgba(20,80,180,.4); }
+  .panel { max-width:min(560px,88vw); background:rgba(10,40,90,.92); border:2px solid rgba(255,255,255,.25);
+    border-radius:20px; padding:30px 34px; box-shadow:0 16px 48px rgba(0,20,70,.7); }
+  .panel h2 { font-size:28px; letter-spacing:6px; margin-bottom:18px;
+    color:#ffe66d; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .panel ul { list-style:none; text-align:left; font-size:16px; line-height:2.1; color:#eaf4ff; }
   h1.big { font-size:clamp(40px,8vw,80px); letter-spacing:4px; text-shadow:0 4px 16px rgba(0,0,0,.5); }
   .scoreLine { font-size:22px; color:#eaf4ff; }
   .scoreLine b { font-size:34px; color:#ffe66d; }
@@ -66,7 +75,21 @@
   <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
   <div class="tip">吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血</div>
   <div class="btn" id="startBtn">开 始 游 戏</div>
+  <div class="btn btn-ghost" id="rulesBtn">查 看 规 则</div>
   <div class="tip">鼠标 / 触屏 / 方向键(WASD) 控制 · 空格开始 · M 静音</div>
+</div>
+<div id="rules" class="overlay hidden">
+  <div class="panel">
+    <h2>游戏规则</h2>
+    <ul>
+      <li>🐟 吃小鱼长大，体型越大分数越高</li>
+      <li>⭐ 金鱼大补：+200 分，还能长得更快</li>
+      <li>🦈 碰到比你大的鱼会掉血，共 3 条命</li>
+      <li>🖱️ 鼠标 / 触屏 / 方向键(WASD) 控制小蓝鲸</li>
+      <li>⏸️ P / Esc 暂停 · M 静音 · 空格开始</li>
+    </ul>
+    <div class="btn" id="rulesCloseBtn">知道了，去玩！</div>
+  </div>
 </div>
 <div id="over" class="overlay hidden">
   <h1 class="big">游戏结束</h1>
@@ -489,6 +512,9 @@ const recordEl=document.getElementById('record');
 const startBtn=document.getElementById('startBtn');
 const againBtn=document.getElementById('againBtn');
 const muteBtn=document.getElementById('muteBtn');
+const rulesEl=document.getElementById('rules');
+const rulesBtn=document.getElementById('rulesBtn');
+const rulesCloseBtn=document.getElementById('rulesCloseBtn');
 
 function showOverlay(el,show){ el.classList.toggle('hidden',!show); }
 function startGame(){
@@ -521,6 +547,8 @@ function toggleMute(){
   muted=!muted; localStorage.setItem('twlj_muted',muted?'1':'0');
   muteBtn.textContent=muted?'🔇':'🔊';
 }
+function showRules(){ initAudio(); sfx.start(); showOverlay(rulesEl,true); rulesBtn.blur(); }
+function hideRules(){ showOverlay(rulesEl,false); }
 
 /* ================= 输入 ================= */
 window.addEventListener('mousemove',e=>{
@@ -538,11 +566,13 @@ window.addEventListener('keydown',e=>{
   initAudio();
   if(e.key===' '||e.key==='Enter'){
     e.preventDefault();
+    if(!rulesEl.classList.contains('hidden')) return;
     if(state.screen==='menu'||state.screen==='gameover') startGame();
     else if(state.screen==='paused') togglePause();
   }
   if(e.key==='p'||e.key==='P'||e.key==='Escape'){
-    if(state.screen==='playing'||state.screen==='paused') togglePause();
+    if(!rulesEl.classList.contains('hidden')) hideRules();
+    else if(state.screen==='playing'||state.screen==='paused') togglePause();
   }
   if(e.key==='m'||e.key==='M') toggleMute();
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key)>=0) e.preventDefault();
@@ -550,6 +580,9 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
 startBtn.addEventListener('click',()=>{ initAudio(); startGame(); startBtn.blur(); });
 againBtn.addEventListener('click',()=>{ startGame(); againBtn.blur(); });
+rulesBtn.addEventListener('click',showRules);
+rulesCloseBtn.addEventListener('click',()=>{ hideRules(); rulesCloseBtn.blur(); });
+rulesEl.addEventListener('click',e=>{ if(e.target===rulesEl) hideRules(); });
 muteBtn.addEventListener('click',()=>{ initAudio(); toggleMute(); muteBtn.blur(); });
 window.addEventListener('blur',()=>{ if(state.screen==='playing') togglePause(); });
 
