@@ -38,14 +38,16 @@
   .btn { pointer-events:auto; margin-top:10px; padding:14px 46px; font-size:22px; font-weight:700;
     letter-spacing:4px; color:#fff; background:linear-gradient(180deg,#2f8cf0,#1a5fc9);
     border:2px solid rgba(255,255,255,.35); border-radius:40px; cursor:pointer;
-    box-shadow:0 8px 26px rgba(20,80,180,.55); transition:transform .15s, box-shadow .15s;
-    user-select:none; }
-  .btn:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 12px 32px rgba(20,80,180,.8); }
-  .btn:active { transform:scale(.97); }
-  .btn-ghost { padding:10px 34px; font-size:16px; letter-spacing:3px;
-    background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.4);
+    box-shadow:0 8px 26px rgba(20,80,180,.55);
+    transition:box-shadow .15s, background-color .15s, border-color .15s, transform .1s;
+    user-select:none; touch-action:manipulation; }
+  .btn:hover { box-shadow:0 12px 34px rgba(30,110,230,.9); }
+  .btn:active { transform:scale(.96); }
+  .btn-ghost { padding:12px 40px; font-size:17px; letter-spacing:3px;
+    background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.45);
     box-shadow:none; }
-  .btn-ghost:hover { background:rgba(255,255,255,.24); box-shadow:0 6px 18px rgba(20,80,180,.4); }
+  .btn-ghost:hover { background:rgba(255,255,255,.3); border-color:rgba(255,255,255,.9);
+    box-shadow:0 8px 22px rgba(30,110,230,.6); }
   .pause-btns { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; margin-top:8px; }
   .panel { max-width:min(560px,88vw); background:rgba(10,40,90,.92); border:2px solid rgba(255,255,255,.25);
     border-radius:20px; padding:30px 34px; box-shadow:0 16px 48px rgba(0,20,70,.7); }
