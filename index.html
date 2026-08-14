@@ -65,13 +65,13 @@
     <div id="hearts"></div>
     <div>最高 <b id="highVal">0</b></div>
   </div>
-  <div id="hint">吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血</div>
+  <div id="hint">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
 </div>
 <button id="muteBtn" title="静音 (M)">🔊</button>
 <div id="menu" class="overlay">
   <div class="title">贪玩蓝鲸</div>
   <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
-  <div class="tip">吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血</div>
+  <div class="tip">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
   <div class="btn" id="startBtn">开 始 游 戏</div>
   <div class="tip">鼠标 / 触屏 / 方向键(WASD) 控制 · 空格开始 · M 静音</div>
 </div>
@@ -120,7 +120,7 @@ const mouse={x:0,y:0,lastMove:-1e9};
 const whale={x:0,y:0,vx:0,vy:0,r:26,facing:1,wobble:0,eatT:0,inv:0};
 let quote=null, quoteT=6, trailT=0;
 let fish=[], parts=[], bubbles=[], seaweeds=[], rays=[], sandDots=[];
-let shake=0, spawnT=0.8, goldT=12;
+let shake=0, spawnT=0.8, goldT=12, gemT=8;
 
 /* ================= 音效 ================= */
 let AC=null;
@@ -147,6 +147,7 @@ const sfx={
   eat:()=>tone(420,760,0.12,'sine',0.16),
   gold:()=>{ tone(660,880,0.1,'triangle',0.16); setTimeout(()=>tone(990,1320,0.14,'triangle',0.14),90); },
   hurt:()=>tone(220,70,0.35,'sawtooth',0.2),
+  heal:()=>{ tone(523,784,0.12,'sine',0.16); setTimeout(()=>tone(784,1046,0.16,'triangle',0.15),100); },
   die:()=>{ tone(320,60,0.9,'sawtooth',0.22); setTimeout(()=>tone(180,50,0.7,'sawtooth',0.18),250); },
   start:()=>{ tone(520,780,0.12,'triangle',0.15); setTimeout(()=>tone(780,1040,0.14,'triangle',0.13),110); }
 };
@@ -186,6 +187,12 @@ function spawnGolden(){
   const dir=fromLeft?1:-1;
   fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(55,95), vy:rand(-10,10),
     r:rand(11,15), dir, pred:false, c1:'#ffd166', c2:'#f59f1c', wob:0, wobS:6, golden:true, harmless:false });
+}
+function spawnGem(){
+  const fromLeft=Math.random()<0.5;
+  const dir=fromLeft?1:-1;
+  fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(50,90), vy:rand(-10,10),
+    r:rand(12,16), dir, pred:false, c1:'#5fe37c', c2:'#1f9e4d', wob:0, wobS:5, golden:false, gem:true, harmless:false });
 }
 
 /* ================= 粒子 ================= */
@@ -235,20 +242,21 @@ function updateFish(dt){
       const dx=whale.x-f.x, dy=whale.y-f.y;
       const rr=whale.r*0.75+f.r*0.85;
       if(dx*dx+dy*dy<rr*rr){
-        if(f.golden||f.r<whale.r*0.88) eatFish(i); else hurtBy(i);
+        if(f.golden||f.gem||f.r<whale.r*0.88) eatFish(i); else hurtBy(i);
       }
     }
   }
 }
 function eatFish(i){
   const f=fish[i];
-  const pts=f.golden?200:Math.round(f.r)*3;
+  const pts=f.golden?200:(f.gem?100:Math.round(f.r)*3);
   state.score+=pts;
-  whale.r=Math.min(90,whale.r+(f.golden?3:f.r*0.10*(1-whale.r/150)));
+  if(f.gem && state.lives<3) state.lives++;
+  whale.r=Math.min(90,whale.r+(f.golden||f.gem?3:f.r*0.10*(1-whale.r/150)));
   whale.eatT=0.3;
-  if(f.golden) sfx.gold(); else sfx.eat();
-  addParts(f.x,f.y,f.golden?'#ffd166':f.c1,f.golden?18:8,150,0.6);
-  addText(f.x,f.y-10,'+'+pts,'#ffe66d');
+  if(f.golden) sfx.gold(); else if(f.gem) sfx.heal(); else sfx.eat();
+  addParts(f.x,f.y, f.golden?'#ffd166':(f.gem?'#6ee86a':f.c1), f.golden?18:(f.gem?16:8), 150, 0.6);
+  if(f.gem) addText(f.x,f.y-10,'+1 ❤','#6ee86a'); else addText(f.x,f.y-10,'+'+pts,'#ffe66d');
   fish.splice(i,1);
 }
 function hurtBy(i){
@@ -315,6 +323,8 @@ function updatePlay(dt){
   }
   goldT-=dt;
   if(goldT<=0){ spawnGolden(); goldT=rand(14,22); }
+  gemT-=dt;
+  if(gemT<=0){ gemT=rand(15,24); if(state.lives<3) spawnGem(); }
 }
 
 /* ================= 绘制 ================= */
@@ -355,12 +365,41 @@ function drawBubbles(){
   for(const b of bubbles){ ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.283); ctx.stroke(); }
   ctx.globalAlpha=1;
 }
+function drawGemFish(f,r){
+  const ty=Math.sin(f.wob)*r*0.3;
+  ctx.shadowColor='#7dff7d'; ctx.shadowBlur=20;
+  const g=ctx.createLinearGradient(-r,-r,r,r);
+  g.addColorStop(0,'#c9ffc0'); g.addColorStop(0.45,'#5fe37c'); g.addColorStop(1,'#1f9e4d');
+  ctx.fillStyle=g;
+  ctx.beginPath();
+  ctx.moveTo(-r*0.6,0);
+  ctx.lineTo(-r*1.12,-r*0.48+ty);
+  ctx.lineTo(-r*0.92,0);
+  ctx.lineTo(-r*1.12,r*0.48+ty);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(0,-r*1.02);
+  ctx.lineTo(r*0.92,0);
+  ctx.lineTo(0,r*0.95);
+  ctx.lineTo(-r*0.92,0);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle='rgba(255,255,255,0.55)';
+  ctx.lineWidth=Math.max(1,r*0.07);
+  ctx.beginPath(); ctx.moveTo(0,-r*1.02); ctx.lineTo(0,r*0.95); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-r*0.92,0); ctx.lineTo(r*0.92,0); ctx.stroke();
+  ctx.fillStyle='#fff';
+  ctx.beginPath(); ctx.arc(r*0.34,-r*0.14,r*0.13,0,6.283); ctx.fill();
+  ctx.fillStyle='#0c5e2e';
+  ctx.beginPath(); ctx.arc(r*0.37,-r*0.14,r*0.065,0,6.283); ctx.fill();
+}
 function drawFishAll(){
   for(const f of fish){
     ctx.save(); ctx.translate(f.x,f.y);
     const dir=f.vx>=0?1:-1; ctx.scale(dir,1);
     const r=f.r;
     ctx.rotate(Math.sin(f.wob)*0.18);
+    if(f.gem){ drawGemFish(f,r); ctx.restore(); continue; }
     if(f.golden){ ctx.shadowColor='#ffd166'; ctx.shadowBlur=20; }
     const g=ctx.createLinearGradient(-r,0,r,0);
     if(f.golden){ g.addColorStop(0,'#ffe08a'); g.addColorStop(1,'#f59f1c'); }
@@ -513,7 +552,7 @@ function startGame(){
   whale.x=W/2; whale.y=H*0.6; whale.vx=0; whale.vy=0;
   whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1;
   fish=[]; parts=[]; quote=null; quoteT=6;
-  spawnT=0.8; goldT=12; shake=0;
+  spawnT=0.8; goldT=12; gemT=8; shake=0;
   mouse.lastMove=-1e9;
   showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false);
   hintEl.textContent='移动鼠标 / 滑动屏幕 控制小蓝鲸 · P 暂停 · M 静音';
@@ -527,7 +566,7 @@ function gameOver(){
   finalHigh.textContent=state.high;
   recordEl.classList.toggle('hidden',!isRecord);
   showOverlay(overEl,true);
-  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血';
+  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
 }
 function togglePause(){
   if(state.screen==='playing'){ state.screen='paused'; showOverlay(pauseEl,true); }
@@ -542,7 +581,7 @@ function goMenu(){
   whale.r=26; whale.inv=0; whale.eatT=0;
   fish=[]; parts=[]; quote=null; shake=0;
   showOverlay(menuEl,true); showOverlay(overEl,false); showOverlay(pauseEl,false);
-  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血';
+  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
 }
 
 /* ================= 输入 ================= */
