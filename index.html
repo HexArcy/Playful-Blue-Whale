@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>贪玩蓝鲸</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#04265e;
+    font-family:"Microsoft YaHei","PingFang SC",Verdana,sans-serif; }
+  canvas { display:block; touch-action:none; }
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:5; }
+  .hud-top { position:absolute; top:0; left:0; right:0; display:flex;
+    justify-content:space-between; align-items:center; padding:14px 20px;
+    color:#eaf4ff; text-shadow:0 2px 8px rgba(0,20,60,.6); font-size:17px; }
+  .hud-top b { font-size:24px; color:#ffe66d; }
+  #hearts { font-size:22px; letter-spacing:4px; }
+  #hearts .on { color:#ff5e6c; text-shadow:0 0 10px rgba(255,94,108,.8); }
+  #hearts .off { color:rgba(255,255,255,.25); }
+  #hint { position:absolute; bottom:12px; left:0; right:0; text-align:center;
+    color:rgba(255,255,255,.55); font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+  #muteBtn { position:fixed; top:12px; right:12px; z-index:6; width:40px; height:40px;
+    border-radius:50%; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12);
+    color:#fff; font-size:18px; cursor:pointer; }
+  #muteBtn:hover { background:rgba(255,255,255,.28); }
+  .overlay { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px;
+    background:rgba(3,20,48,.72); color:#fff; text-align:center;
+    transition:opacity .3s; }
+  .overlay.hidden { opacity:0; pointer-events:none; }
+  .title { font-size:clamp(48px,11vw,110px); font-weight:900; letter-spacing:6px;
+    background:linear-gradient(180deg,#7fd4ff 0%,#4a94e8 45%,#ffd166 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 6px 18px rgba(0,40,90,.8)); animation:bob 3s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .sub { font-size:clamp(15px,2.4vw,22px); color:#ffe66d; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .tip { font-size:13px; color:rgba(255,255,255,.65); }
+  .btn { pointer-events:auto; margin-top:10px; padding:14px 46px; font-size:22px; font-weight:700;
+    letter-spacing:4px; color:#fff; background:linear-gradient(180deg,#2f8cf0,#1a5fc9);
+    border:2px solid rgba(255,255,255,.35); border-radius:40px; cursor:pointer;
+    box-shadow:0 8px 26px rgba(20,80,180,.55); transition:transform .15s, box-shadow .15s;
+    user-select:none; }
+  .btn:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 12px 32px rgba(20,80,180,.8); }
+  .btn:active { transform:scale(.97); }
+  h1.big { font-size:clamp(40px,8vw,80px); letter-spacing:4px; text-shadow:0 4px 16px rgba(0,0,0,.5); }
+  .scoreLine { font-size:22px; color:#eaf4ff; }
+  .scoreLine b { font-size:34px; color:#ffe66d; }
+  .record { font-size:20px; color:#ffd166; font-weight:700; animation:pulse 1s infinite; }
+  @keyframes pulse { 50%{transform:scale(1.08);} }
+  #pause h1 { font-size:44px; letter-spacing:8px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="hud-top">
+    <div>分数 <b id="scoreVal">0</b></div>
+    <div id="hearts"></div>
+    <div>最高 <b id="highVal">0</b></div>
+  </div>
+  <div id="hint">吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血</div>
+</div>
+<button id="muteBtn" title="静音 (M)">🔊</button>
+<div id="menu" class="overlay">
+  <div class="title">贪玩蓝鲸</div>
+  <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
+  <div class="tip">吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血</div>
+  <div class="btn" id="startBtn">开 始 游 戏</div>
+  <div class="tip">鼠标 / 触屏 / 方向键(WASD) 控制 · 空格开始 · M 静音</div>
+</div>
+<div id="over" class="overlay hidden">
+  <h1 class="big">游戏结束</h1>
+  <div class="scoreLine">得分 <b id="finalScore">0</b></div>
+  <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
+  <div id="record" class="record hidden">🏆 新纪录！</div>
+  <div class="btn" id="againBtn">再 玩 一 次</div>
+  <div class="tip">是兄弟就回来继续玩（按空格也行）</div>
+</div>
+<div id="pause" class="overlay hidden"><h1>暂 停</h1><div class="tip">按 P 或 Esc 继续</div></div>
+<script>
+'use strict';
+/* ================= 工具 ================= */
+const rand=(a,b)=>a+Math.random()*(b-a);
+const randInt=(a,b)=>Math.floor(rand(a,b+1));
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ================= 画布 ================= */
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let W=0,H=0;
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth; H=window.innerHeight;
+  canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  initDecor();
+}
+window.addEventListener('resize',resize);
+
+/* ================= 状态 ================= */
+const state={ screen:'menu', score:0, high:parseInt(localStorage.getItem('twlj_high')||'0',10), lives:3, time:0 };
+const keys={};
+const mouse={x:0,y:0,lastMove:-1e9};
+
+const whale={x:0,y:0,vx:0,vy:0,r:26,facing:1,wobble:0,eatT:0,inv:0};
+let quote=null, quoteT=6, trailT=0;
+let fish=[], parts=[], bubbles=[], seaweeds=[], rays=[], sandDots=[];
+let shake=0, spawnT=0.8, goldT=12;
+
+/* ================= 音效 ================= */
+let AC=null;
+let muted=localStorage.getItem('twlj_muted')==='1';
+function initAudio(){
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(AC&&AC.state==='suspended') AC.resume();
+}
+function tone(f0,f1,dur,type,vol){
+  if(!AC||muted) return;
+  try{
+    const t=AC.currentTime;
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type=type;
+    o.frequency.setValueAtTime(f0,t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(f1,1),t+dur);
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(t); o.stop(t+dur+0.02);
+  }catch(e){}
+}
+const sfx={
+  eat:()=>tone(420,760,0.12,'sine',0.16),
+  gold:()=>{ tone(660,880,0.1,'triangle',0.16); setTimeout(()=>tone(990,1320,0.14,'triangle',0.14),90); },
+  hurt:()=>tone(220,70,0.35,'sawtooth',0.2),
+  die:()=>{ tone(320,60,0.9,'sawtooth',0.22); setTimeout(()=>tone(180,50,0.7,'sawtooth',0.18),250); },
+  start:()=>{ tone(520,780,0.12,'triangle',0.15); setTimeout(()=>tone(780,1040,0.14,'triangle',0.13),110); }
+};
+
+/* ================= 场景装饰 ================= */
+const QUOTES=['是兄弟就来喂我！','大渣好，我系渣渣鲸','贪玩蓝鲸，一刀999','好饿啊~','喂我喂我！','今天也要努力干饭！','呜哇哇哇~~~'];
+function initDecor(){
+  bubbles=[]; for(let i=0;i<Math.min(46,W/18);i++)
+    bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(2,9),sp:rand(12,42),ph:rand(0,6.28)});
+  seaweeds=[]; const n=Math.max(6,Math.round(W/80));
+  for(let i=0;i<n;i++) seaweeds.push({x:rand(0,W),h:rand(60,170),w:rand(7,14),ph:rand(0,6.28),sp:rand(0.7,1.7)});
+  rays=[]; for(let i=0;i<6;i++) rays.push({x:rand(0,W),w:rand(60,160),sp:rand(6,16)});
+  sandDots=[]; for(let i=0;i<90;i++) sandDots.push({x:rand(0,W),y:rand(H-52,H-6),r:rand(0.8,2.4),a:rand(0.08,0.3)});
+}
+
+/* ================= 鱼类 ================= */
+const PALETTE=[['#f0a35e','#d97a2e'],['#e86a5e','#c23f3f'],['#5ec4e8','#2f8fc0'],['#8f7ee8','#6a54c9'],['#7ed6a0','#46a86e'],['#e85ec4','#bd3f9e']];
+function spawnFish(){
+  if(fish.length>45) return;
+  const fromLeft=Math.random()<0.5;
+  const dir=fromLeft?1:-1;
+  let r=rand(8,Math.max(12,whale.r*1.7));
+  const dangerP=0.22+Math.min(0.4,whale.r/140);
+  if(r>=whale.r*0.88 && Math.random()>dangerP) r=rand(8,Math.max(9,whale.r*0.75));
+  let pred=false;
+  if(whale.r>38 && Math.random()<0.1 && r>=whale.r*0.95){ r=whale.r*rand(1.15,1.45); pred=true; }
+  const c=PALETTE[randInt(0,PALETTE.length-1)];
+  fish.push({
+    x:fromLeft?-60:W+60, y:rand(H*0.12,H*0.88),
+    vx:dir*rand(60,140)*(1+Math.min(1,state.time/240)*0.7)*(pred?0.55:1),
+    vy:rand(-15,15), r, dir, pred, c1:c[0], c2:c[1],
+    wob:rand(0,6.28), wobS:rand(4,8), golden:false, harmless:false
+  });
+}
+function spawnGolden(){
+  const fromLeft=Math.random()<0.5;
+  const dir=fromLeft?1:-1;
+  fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(55,95), vy:rand(-10,10),
+    r:rand(11,15), dir, pred:false, c1:'#ffd166', c2:'#f59f1c', wob:0, wobS:6, golden:true, harmless:false });
+}
+
+/* ================= 粒子 ================= */
+function addParts(x,y,color,n,spd,life){
+  for(let i=0;i<n;i++){
+    const a=rand(0,6.283), s=rand(0.2,1)*spd;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(life*0.5,life),max:life,r:rand(1.5,4.5),color,bub:Math.random()<0.3});
+  }
+}
+function addText(x,y,text,color){ parts.push({x,y,vx:0,vy:-46,life:0.9,max:0.9,r:0,color,text}); }
+function updateParticles(dt){
+  for(let i=parts.length-1;i>=0;i--){
+    const p=parts[i]; p.life-=dt;
+    if(p.life<=0){ parts.splice(i,1); continue; }
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.bub){ p.vy-=30*dt; p.x+=Math.sin(p.life*6)*14*dt; }
+  }
+}
+function drawParticles(){
+  for(const p of parts){
+    const a=clamp(p.life/p.max,0,1);
+    if(p.text){
+      ctx.globalAlpha=a; ctx.fillStyle=p.color;
+      ctx.font='bold 15px "Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+      ctx.fillText(p.text,p.x,p.y); ctx.globalAlpha=1; continue;
+    }
+    if(p.bub){ ctx.globalAlpha=a*0.6; ctx.strokeStyle=p.color; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.stroke(); }
+    else { ctx.globalAlpha=a; ctx.fillStyle=p.color;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.283); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+}
+
+/* ================= 更新 ================= */
+function updateDecor(dt){
+  const t=performance.now()/1000;
+  for(const b of bubbles){ b.y-=b.sp*dt; b.x+=Math.sin(t*1.3+b.ph)*10*dt; if(b.y<-14){ b.y=H+14; b.x=rand(0,W); } }
+  for(const r of rays){ r.x+=r.sp*dt; if(r.x-r.w>W+100) r.x=-120; }
+}
+function updateFish(dt){
+  for(let i=fish.length-1;i>=0;i--){
+    const f=fish[i];
+    f.x+=f.vx*dt; f.y+=f.vy*dt; f.wob+=dt*f.wobS;
+    if(f.x<-160||f.x>W+160||f.y<-160||f.y>H+160){ fish.splice(i,1); continue; }
+    if(state.screen==='playing'&&!f.harmless&&whale.inv<=0){
+      const dx=whale.x-f.x, dy=whale.y-f.y;
+      const rr=whale.r*0.75+f.r*0.85;
+      if(dx*dx+dy*dy<rr*rr){
+        if(f.golden||f.r<whale.r*0.88) eatFish(i); else hurtBy(i);
+      }
+    }
+  }
+}
+function eatFish(i){
+  const f=fish[i];
+  const pts=f.golden?200:Math.round(f.r)*3;
+  state.score+=pts;
+  whale.r=Math.min(90,whale.r+(f.golden?3:f.r*0.10*(1-whale.r/150)));
+  whale.eatT=0.3;
+  if(f.golden) sfx.gold(); else sfx.eat();
+  addParts(f.x,f.y,f.golden?'#ffd166':f.c1,f.golden?18:8,150,0.6);
+  addText(f.x,f.y-10,'+'+pts,'#ffe66d');
+  fish.splice(i,1);
+}
+function hurtBy(i){
+  const f=fish[i];
+  state.lives--; shake=0.6; whale.inv=2.2; sfx.hurt();
+  addParts(f.x,f.y,'#ff5e5e',14,190,0.5);
+  f.harmless=true;
+  const away=f.x>whale.x?1:-1;
+  f.vx=away*rand(150,230); f.vy=-rand(90,150);
+  if(state.lives<=0) gameOver();
+}
+function updateWhale(dt){
+  const t=performance.now()/1000;
+  if(state.screen==='playing'){
+    let ax=0,ay=0;
+    if(keys['ArrowLeft']||keys['a']||keys['A'])ax-=1;
+    if(keys['ArrowRight']||keys['d']||keys['D'])ax+=1;
+    if(keys['ArrowUp']||keys['w']||keys['W'])ay-=1;
+    if(keys['ArrowDown']||keys['s']||keys['S'])ay+=1;
+    const useKeys=ax!==0||ay!==0;
+    const K=430;
+    if(useKeys){
+      const len=Math.hypot(ax,ay)||1;
+      whale.vx=lerp(whale.vx,ax/len*K,Math.min(1,dt*6));
+      whale.vy=lerp(whale.vy,ay/len*K,Math.min(1,dt*6));
+    } else if(performance.now()-mouse.lastMove<4000){
+      const dx=mouse.x-whale.x, dy=mouse.y-whale.y, d=Math.hypot(dx,dy);
+      if(d>6){ whale.vx=lerp(whale.vx,dx/d*K,Math.min(1,dt*5)); whale.vy=lerp(whale.vy,dy/d*K,Math.min(1,dt*5)); }
+      else { const fr=Math.pow(0.02,dt); whale.vx*=fr; whale.vy*=fr; }
+    } else {
+      const fr=Math.pow(0.0005,dt); whale.vx*=fr; whale.vy*=fr;
+    }
+    whale.x+=whale.vx*dt; whale.y+=whale.vy*dt;
+  } else {
+    whale.x=W*0.5+Math.sin(t*0.4)*W*0.13;
+    whale.y=H*0.56+Math.sin(t*0.7)*44;
+    whale.vx=Math.cos(t*0.4)*W*0.05; whale.vy=Math.cos(t*0.7)*30;
+  }
+  whale.x=clamp(whale.x,whale.r,W-whale.r);
+  whale.y=clamp(whale.y,whale.r+8,H-whale.r);
+  if(Math.abs(whale.vx)>10) whale.facing=whale.vx>0?1:-1;
+  whale.wobble+=dt*4;
+  whale.eatT=Math.max(0,whale.eatT-dt);
+  if(whale.inv>0) whale.inv-=dt;
+  trailT-=dt;
+  if(trailT<=0){
+    trailT=0.16;
+    parts.push({x:whale.x-whale.facing*whale.r*0.9,y:whale.y+rand(-4,6),
+      vx:-whale.facing*rand(6,16),vy:rand(-26,-10),life:rand(0.5,0.9),max:0.9,
+      r:rand(2,4.5),color:'rgba(255,255,255,0.7)',bub:true});
+  }
+  if(state.screen==='playing'){
+    quoteT-=dt;
+    if(quoteT<=0){ quote={text:QUOTES[randInt(0,QUOTES.length-1)],t:4}; quoteT=rand(16,28); }
+  }
+  if(quote){ quote.t-=dt; if(quote.t<=0) quote=null; }
+}
+function updatePlay(dt){
+  state.time+=dt;
+  spawnT-=dt;
+  if(spawnT<=0){
+    spawnFish(); if(Math.random()<0.3) spawnFish();
+    spawnT=rand(0.55,1.25)*(1-Math.min(1,state.time/150)*0.45);
+  }
+  goldT-=dt;
+  if(goldT<=0){ spawnGolden(); goldT=rand(14,22); }
+}
+
+/* ================= 绘制 ================= */
+function drawBg(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#04265e'); g.addColorStop(0.5,'#0a4f9e'); g.addColorStop(0.85,'#0e86c4'); g.addColorStop(1,'#1499cc');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,0.05)';
+  for(const r of rays){
+    ctx.beginPath();
+    ctx.moveTo(r.x-8,0); ctx.lineTo(r.x+r.w+8,0); ctx.lineTo(r.x+r.w+34,H); ctx.lineTo(r.x-34,H);
+    ctx.closePath(); ctx.fill();
+  }
+  const sg=ctx.createLinearGradient(0,H-46,0,H);
+  sg.addColorStop(0,'rgba(216,179,106,0)'); sg.addColorStop(0.5,'rgba(216,179,106,0.85)'); sg.addColorStop(1,'#c99b4e');
+  ctx.fillStyle=sg; ctx.fillRect(0,H-46,W,46);
+  ctx.fillStyle='#a97f3d';
+  for(const d of sandDots){ ctx.globalAlpha=d.a; ctx.beginPath(); ctx.arc(d.x,d.y,d.r,0,6.283); ctx.fill(); }
+  ctx.globalAlpha=1;
+}
+function drawSeaweed(){
+  const t=performance.now()/1000;
+  ctx.lineCap='round';
+  for(const s of seaweeds){
+    const sway=Math.sin(t*s.sp+s.ph)*14;
+    ctx.strokeStyle='rgba(29,122,79,0.85)'; ctx.lineWidth=s.w;
+    ctx.beginPath(); ctx.moveTo(s.x,H+8);
+    ctx.quadraticCurveTo(s.x+sway*0.4,H-s.h*0.5,s.x+sway,H-s.h);
+    ctx.stroke();
+    ctx.strokeStyle='rgba(52,168,110,0.55)'; ctx.lineWidth=s.w*0.5;
+    ctx.beginPath(); ctx.moveTo(s.x+4,H+8);
+    ctx.quadraticCurveTo(s.x+6-sway*0.3,H-s.h*0.62,s.x-sway*0.7,H-s.h*1.05);
+    ctx.stroke();
+  }
+}
+function drawBubbles(){
+  ctx.strokeStyle='rgba(255,255,255,0.35)';
+  for(const b of bubbles){ ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,6.283); ctx.stroke(); }
+  ctx.globalAlpha=1;
+}
+function drawFishAll(){
+  for(const f of fish){
+    ctx.save(); ctx.translate(f.x,f.y);
+    const dir=f.vx>=0?1:-1; ctx.scale(dir,1);
+    const r=f.r;
+    ctx.rotate(Math.sin(f.wob)*0.18);
+    if(f.golden){ ctx.shadowColor='#ffd166'; ctx.shadowBlur=20; }
+    const g=ctx.createLinearGradient(-r,0,r,0);
+    if(f.golden){ g.addColorStop(0,'#ffe08a'); g.addColorStop(1,'#f59f1c'); }
+    else if(f.pred){ g.addColorStop(0,'#6b7280'); g.addColorStop(1,'#1f2937'); }
+    else { g.addColorStop(0,f.c1); g.addColorStop(1,f.c2); }
+    ctx.fillStyle=g;
+    const ty=Math.sin(f.wob)*r*0.4;
+    ctx.beginPath();
+    ctx.moveTo(-r*0.68,0);
+    ctx.quadraticCurveTo(-r*1.12,-r*0.32,-r*1.32,-r*0.72+ty);
+    ctx.lineTo(-r*1.02,0);
+    ctx.lineTo(-r*1.32,r*0.72+ty);
+    ctx.quadraticCurveTo(-r*1.12,r*0.32,-r*0.68,0);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r*0.08,0,r*0.95,r*0.58,0,0,6.283); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-r*0.12,-r*0.5);
+    ctx.quadraticCurveTo(r*0.12,-r*0.95,r*0.42,-r*0.42);
+    ctx.quadraticCurveTo(r*0.06,-r*0.6,-r*0.12,-r*0.5);
+    ctx.fill();
+    ctx.shadowBlur=0;
+    if(f.pred){
+      ctx.strokeStyle='rgba(255,255,255,0.22)'; ctx.lineWidth=Math.max(2,r*0.09);
+      for(let k=0;k<2;k++){ ctx.beginPath(); ctx.moveTo(r*0.05+k*r*0.45,-r*0.52); ctx.lineTo(r*0.05+k*r*0.45,r*0.52); ctx.stroke(); }
+    }
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.55,-r*0.1,r*0.16,0,6.283); ctx.fill();
+    ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(r*0.58,-r*0.1,r*0.08,0,6.283); ctx.fill();
+    ctx.restore();
+  }
+}
+function drawWhaleC(){
+  const w=whale;
+  if(w.inv>0&&state.screen==='playing'&&Math.floor(performance.now()/90)%2===0) return;
+  ctx.save();
+  ctx.translate(w.x,w.y);
+  if(w.facing<0) ctx.scale(-1,1);
+  const r=w.r;
+  const spd=Math.min(1,Math.hypot(w.vx,w.vy)/260);
+  const tailA=Math.sin(w.wobble)*0.6*spd;
+  ctx.rotate(Math.sin(w.wobble)*0.05*spd);
+  ctx.fillStyle='#2f6fd8';
+  ctx.beginPath();
+  ctx.moveTo(-r*0.7,0);
+  ctx.quadraticCurveTo(-r*1.25,-r*0.34,-r*1.52,-r*0.55+tailA*r*0.55);
+  ctx.quadraticCurveTo(-r*1.28,-r*0.16,-r*1.08,0);
+  ctx.quadraticCurveTo(-r*1.28,r*0.16,-r*1.52,r*0.55+tailA*r*0.55);
+  ctx.quadraticCurveTo(-r*1.25,r*0.34,-r*0.7,0);
+  ctx.closePath(); ctx.fill();
+  const g=ctx.createLinearGradient(0,-r,0,r);
+  g.addColorStop(0,'#2f6fd8'); g.addColorStop(0.55,'#4a94e8'); g.addColorStop(1,'#6fb0f0');
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(r*0.12,0,r*1.02,r*0.64,0,0,6.283); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.78,-r*0.03,r*0.5,r*0.52,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#d8ecfb';
+  ctx.beginPath(); ctx.ellipse(r*0.08,r*0.2,r*0.88,r*0.32,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#2f6fd8';
+  ctx.beginPath(); ctx.moveTo(-r*0.28,-r*0.52);
+  ctx.quadraticCurveTo(r*0.06,-r*1.06,r*0.38,-r*0.48);
+  ctx.quadraticCurveTo(r*0.04,-r*0.7,-r*0.28,-r*0.52);
+  ctx.closePath(); ctx.fill();
+  const pf=Math.sin(w.wobble*0.9)*0.35;
+  ctx.save(); ctx.translate(-r*0.1,r*0.26); ctx.rotate(0.4+pf*0.4);
+  ctx.fillStyle='#3d7fe0';
+  ctx.beginPath(); ctx.ellipse(0,0,r*0.44,r*0.17,0,0,6.283); ctx.fill();
+  ctx.restore();
+  if(w.eatT>0){
+    const m=w.eatT/0.3;
+    ctx.fillStyle='#123a6e';
+    ctx.beginPath();
+    ctx.moveTo(r*0.62,r*0.1);
+    ctx.quadraticCurveTo(r*1.02,r*0.12+r*0.4*m,r*1.12,r*0.04);
+    ctx.quadraticCurveTo(r*0.92,-r*0.06,r*0.58,-r*0.14);
+    ctx.closePath(); ctx.fill();
+  } else {
+    ctx.strokeStyle='#123a6e'; ctx.lineWidth=Math.max(1.6,r*0.05); ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(r*0.74,r*0.06,r*0.26,0.3,Math.PI-0.55); ctx.stroke();
+  }
+  ctx.fillStyle='#2a5fc4';
+  ctx.beginPath(); ctx.ellipse(r*0.48,-r*0.5,r*0.045,r*0.085,0,0,6.283); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.72,-r*0.18,r*0.17,0,6.283); ctx.fill();
+  ctx.fillStyle='#123a6e'; ctx.beginPath(); ctx.arc(r*0.76,-r*0.18,r*0.09,0,6.283); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.79,-r*0.21,r*0.035,0,6.283); ctx.fill();
+  ctx.restore();
+  if(quote){
+    const bx=w.x, by=w.y-r*1.9-24;
+    ctx.font='13px "Microsoft YaHei",sans-serif';
+    const tw=ctx.measureText(quote.text).width;
+    const bw=tw+22, bh=28, x=clamp(bx-bw/2,4,W-bw-4), y=clamp(by,30,H-30);
+    ctx.fillStyle='rgba(255,255,255,0.92)';
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,bw,bh,10); else ctx.rect(x,y,bw,bh);
+    const tx=clamp(bx,x+10,x+bw-10);
+    ctx.moveTo(tx,y+bh);
+    ctx.lineTo(tx-5,y+bh+7);
+    ctx.lineTo(tx+5,y+bh+7);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#123a6e'; ctx.textAlign='center';
+    ctx.fillText(quote.text,x+bw/2,y+bh/2+5);
+    ctx.textAlign='left';
+  }
+}
+function drawVignette(){
+  const g=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.45,W/2,H/2,Math.max(W,H)*0.75);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,10,40,0.35)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+}
+function render(){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  if(shake>0) ctx.translate(rand(-1,1)*shake*9,rand(-1,1)*shake*9);
+  drawBg(); drawSeaweed(); drawBubbles();
+  drawFishAll();
+  drawParticles();
+  drawWhaleC();
+  ctx.restore();
+  drawVignette();
+}
+
+/* ================= HUD ================= */
+const scoreVal=document.getElementById('scoreVal');
+const highVal=document.getElementById('highVal');
+const heartsEl=document.getElementById('hearts');
+const hintEl=document.getElementById('hint');
+function updateHUD(){
+  scoreVal.textContent=state.score;
+  highVal.textContent=state.high;
+  let h='';
+  for(let i=0;i<3;i++) h+='<span class="'+(i<state.lives?'on':'off')+'">♥</span>';
+  heartsEl.innerHTML=h;
+}
+
+/* ================= 流程 ================= */
+const menuEl=document.getElementById('menu');
+const overEl=document.getElementById('over');
+const pauseEl=document.getElementById('pause');
+const finalScore=document.getElementById('finalScore');
+const finalHigh=document.getElementById('finalHigh');
+const recordEl=document.getElementById('record');
+const startBtn=document.getElementById('startBtn');
+const againBtn=document.getElementById('againBtn');
+const muteBtn=document.getElementById('muteBtn');
+
+function showOverlay(el,show){ el.classList.toggle('hidden',!show); }
+function startGame(){
+  initAudio(); sfx.start();
+  state.screen='playing'; state.score=0; state.lives=3; state.time=0;
+  whale.x=W/2; whale.y=H*0.6; whale.vx=0; whale.vy=0;
+  whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1;
+  fish=[]; parts=[]; quote=null; quoteT=6;
+  spawnT=0.8; goldT=12; shake=0;
+  mouse.lastMove=-1e9;
+  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false);
+  hintEl.textContent='移动鼠标 / 滑动屏幕 控制小蓝鲸 · P 暂停 · M 静音';
+}
+function gameOver(){
+  state.screen='gameover';
+  sfx.die();
+  const isRecord=state.score>state.high;
+  if(isRecord){ state.high=state.score; localStorage.setItem('twlj_high',String(state.high)); }
+  finalScore.textContent=state.score;
+  finalHigh.textContent=state.high;
+  recordEl.classList.toggle('hidden',!isRecord);
+  showOverlay(overEl,true);
+  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血';
+}
+function togglePause(){
+  if(state.screen==='playing'){ state.screen='paused'; showOverlay(pauseEl,true); }
+  else if(state.screen==='paused'){ state.screen='playing'; showOverlay(pauseEl,false); }
+}
+function toggleMute(){
+  muted=!muted; localStorage.setItem('twlj_muted',muted?'1':'0');
+  muteBtn.textContent=muted?'🔇':'🔊';
+}
+
+/* ================= 输入 ================= */
+window.addEventListener('mousemove',e=>{
+  mouse.x=e.clientX; mouse.y=e.clientY; mouse.lastMove=performance.now();
+});
+window.addEventListener('touchstart',e=>{
+  const t=e.touches[0]; mouse.x=t.clientX; mouse.y=t.clientY; mouse.lastMove=performance.now();
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const t=e.touches[0]; mouse.x=t.clientX; mouse.y=t.clientY; mouse.lastMove=performance.now();
+},{passive:false});
+window.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  initAudio();
+  if(e.key===' '||e.key==='Enter'){
+    e.preventDefault();
+    if(state.screen==='menu'||state.screen==='gameover') startGame();
+    else if(state.screen==='paused') togglePause();
+  }
+  if(e.key==='p'||e.key==='P'||e.key==='Escape'){
+    if(state.screen==='playing'||state.screen==='paused') togglePause();
+  }
+  if(e.key==='m'||e.key==='M') toggleMute();
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key)>=0) e.preventDefault();
+});
+window.addEventListener('keyup',e=>{ keys[e.key]=false; });
+startBtn.addEventListener('click',()=>{ initAudio(); startGame(); startBtn.blur(); });
+againBtn.addEventListener('click',()=>{ startGame(); againBtn.blur(); });
+muteBtn.addEventListener('click',()=>{ initAudio(); toggleMute(); muteBtn.blur(); });
+window.addEventListener('blur',()=>{ if(state.screen==='playing') togglePause(); });
+
+/* ================= 主循环 ================= */
+resize();
+whale.x=W/2; whale.y=H*0.56;
+muteBtn.textContent=muted?'🔇':'🔊';
+let lastT=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.033,(now-lastT)/1000); lastT=now;
+  if(state.screen==='playing') updatePlay(dt);
+  updateDecor(dt);
+  updateFish(dt);
+  updateWhale(dt);
+  updateParticles(dt);
+  if(shake>0) shake=Math.max(0,shake-dt);
+  render();
+  updateHUD();
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
