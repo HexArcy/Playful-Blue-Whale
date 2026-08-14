@@ -28,6 +28,7 @@
     background:rgba(3,20,48,.72); color:#fff; text-align:center;
     transition:opacity .3s; }
   .overlay.hidden { opacity:0; pointer-events:none; }
+  .overlay.hidden * { pointer-events:none; }
   .title { font-size:clamp(48px,11vw,110px); font-weight:900; letter-spacing:6px;
     background:linear-gradient(180deg,#7fd4ff 0%,#4a94e8 45%,#ffd166 100%);
     -webkit-background-clip:text; background-clip:text; color:transparent;
@@ -35,7 +36,7 @@
   @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
   .sub { font-size:clamp(15px,2.4vw,22px); color:#ffe66d; text-shadow:0 2px 8px rgba(0,0,0,.5); }
   .tip { font-size:13px; color:rgba(255,255,255,.65); }
-  .btn { pointer-events:auto; margin-top:10px; padding:14px 46px; font-size:22px; font-weight:700;
+  .btn { margin-top:10px; padding:14px 46px; font-size:22px; font-weight:700;
     letter-spacing:4px; color:#fff; background:linear-gradient(180deg,#2f8cf0,#1a5fc9);
     border:2px solid rgba(255,255,255,.35); border-radius:40px; cursor:pointer;
     box-shadow:0 8px 26px rgba(20,80,180,.55); transition:transform .15s, box-shadow .15s;
