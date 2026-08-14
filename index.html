@@ -25,8 +25,8 @@
   #muteBtn:hover { background:rgba(255,255,255,.28); }
   .overlay { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:14px;
-    background:rgba(3,20,48,.72); color:#fff; text-align:center;
-    transition:opacity .3s; }
+    background:rgba(3,20,48,.88); color:#fff; text-align:center;
+    transition:opacity .25s; }
   .overlay.hidden { opacity:0; pointer-events:none; }
   .title { font-size:clamp(48px,11vw,110px); font-weight:900; letter-spacing:6px;
     background:linear-gradient(180deg,#7fd4ff 0%,#4a94e8 45%,#ffd166 100%);
@@ -43,9 +43,10 @@
   .btn:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 12px 32px rgba(20,80,180,.8); }
   .btn:active { transform:scale(.97); }
   .btn-ghost { padding:10px 34px; font-size:16px; letter-spacing:3px;
-    background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.4);
-    box-shadow:none; backdrop-filter:blur(4px); }
-  .btn-ghost:hover { background:rgba(255,255,255,.22); box-shadow:0 6px 18px rgba(20,80,180,.4); }
+    background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.4);
+    box-shadow:none; }
+  .btn-ghost:hover { background:rgba(255,255,255,.24); box-shadow:0 6px 18px rgba(20,80,180,.4); }
+  .pause-btns { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; margin-top:8px; }
   .panel { max-width:min(560px,88vw); background:rgba(10,40,90,.92); border:2px solid rgba(255,255,255,.25);
     border-radius:20px; padding:30px 34px; box-shadow:0 16px 48px rgba(0,20,70,.7); }
   .panel h2 { font-size:28px; letter-spacing:6px; margin-bottom:18px;
@@ -97,9 +98,17 @@
   <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
   <div id="record" class="record hidden">🏆 新纪录！</div>
   <div class="btn" id="againBtn">再 玩 一 次</div>
+  <div class="btn btn-ghost" id="overHomeBtn">返回主页</div>
   <div class="tip">是兄弟就回来继续玩（按空格也行）</div>
 </div>
-<div id="pause" class="overlay hidden"><h1>暂 停</h1><div class="tip">按 P 或 Esc 继续</div></div>
+<div id="pause" class="overlay hidden">
+  <h1>暂 停</h1>
+  <div class="pause-btns">
+    <div class="btn" id="pauseResumeBtn">继 续 游 戏</div>
+    <div class="btn btn-ghost" id="pauseHomeBtn">返回主页</div>
+  </div>
+  <div class="tip">P / Esc 继续 · M 静音</div>
+</div>
 <script>
 'use strict';
 /* ================= 工具 ================= */
@@ -123,7 +132,7 @@ function resize(){
 window.addEventListener('resize',resize);
 
 /* ================= 状态 ================= */
-const state={ screen:'menu', score:0, high:parseInt(localStorage.getItem('twlj_high')||'0',10), lives:3, time:0 };
+const state={ screen:'menu', score:0, high:parseInt(lsGet('twlj_high')||'0',10)||0, lives:3, time:0 };
 const keys={};
 const mouse={x:0,y:0,lastMove:-1e9};
 
@@ -133,11 +142,13 @@ let fish=[], parts=[], bubbles=[], seaweeds=[], rays=[], sandDots=[];
 let shake=0, spawnT=0.8, goldT=12;
 
 /* ================= 音效 ================= */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 let AC=null;
-let muted=localStorage.getItem('twlj_muted')==='1';
+let muted=lsGet('twlj_muted')==='1';
 function initAudio(){
-  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
-  if(AC&&AC.state==='suspended') AC.resume();
+  if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ AC=null; } }
+  if(AC&&AC.state==='suspended'){ try{ AC.resume(); }catch(e){} }
 }
 function tone(f0,f1,dur,type,vol){
   if(!AC||muted) return;
@@ -515,24 +526,28 @@ const muteBtn=document.getElementById('muteBtn');
 const rulesEl=document.getElementById('rules');
 const rulesBtn=document.getElementById('rulesBtn');
 const rulesCloseBtn=document.getElementById('rulesCloseBtn');
+const pauseResumeBtn=document.getElementById('pauseResumeBtn');
+const pauseHomeBtn=document.getElementById('pauseHomeBtn');
+const overHomeBtn=document.getElementById('overHomeBtn');
 
 function showOverlay(el,show){ el.classList.toggle('hidden',!show); }
 function startGame(){
-  initAudio(); sfx.start();
   state.screen='playing'; state.score=0; state.lives=3; state.time=0;
   whale.x=W/2; whale.y=H*0.6; whale.vx=0; whale.vy=0;
   whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1;
   fish=[]; parts=[]; quote=null; quoteT=6;
   spawnT=0.8; goldT=12; shake=0;
   mouse.lastMove=-1e9;
-  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false);
+  showOverlay(menuEl,false); showOverlay(overEl,false);
+  showOverlay(pauseEl,false); showOverlay(rulesEl,false);
   hintEl.textContent='移动鼠标 / 滑动屏幕 控制小蓝鲸 · P 暂停 · M 静音';
+  initAudio(); try{ sfx.start(); }catch(e){}
 }
 function gameOver(){
   state.screen='gameover';
-  sfx.die();
+  try{ sfx.die(); }catch(e){}
   const isRecord=state.score>state.high;
-  if(isRecord){ state.high=state.score; localStorage.setItem('twlj_high',String(state.high)); }
+  if(isRecord){ state.high=state.score; lsSet('twlj_high',String(state.high)); }
   finalScore.textContent=state.score;
   finalHigh.textContent=state.high;
   recordEl.classList.toggle('hidden',!isRecord);
@@ -543,11 +558,26 @@ function togglePause(){
   if(state.screen==='playing'){ state.screen='paused'; showOverlay(pauseEl,true); }
   else if(state.screen==='paused'){ state.screen='playing'; showOverlay(pauseEl,false); }
 }
+function goMenu(){
+  state.screen='menu'; state.score=0; state.lives=3;
+  whale.r=26; whale.inv=0; whale.eatT=0;
+  fish=[]; parts=[]; quote=null;
+  showOverlay(menuEl,true); showOverlay(overEl,false);
+  showOverlay(pauseEl,false); showOverlay(rulesEl,false);
+  hintEl.textContent='吃小鱼长大 · 金鱼大补 · 碰到比你大的鱼会掉血';
+  initAudio(); try{ sfx.start(); }catch(e){}
+}
 function toggleMute(){
-  muted=!muted; localStorage.setItem('twlj_muted',muted?'1':'0');
+  muted=!muted; lsSet('twlj_muted',muted?'1':'0');
   muteBtn.textContent=muted?'🔇':'🔊';
 }
-function showRules(){ initAudio(); sfx.start(); showOverlay(rulesEl,true); rulesBtn.blur(); }
+let rulesOpenedAt=0;
+function showRules(){
+  showOverlay(rulesEl,true);
+  rulesOpenedAt=performance.now();
+  rulesBtn.blur();
+  initAudio(); try{ sfx.start(); }catch(e){}
+}
 function hideRules(){ showOverlay(rulesEl,false); }
 
 /* ================= 输入 ================= */
@@ -566,7 +596,10 @@ window.addEventListener('keydown',e=>{
   initAudio();
   if(e.key===' '||e.key==='Enter'){
     e.preventDefault();
-    if(!rulesEl.classList.contains('hidden')) return;
+    if(!rulesEl.classList.contains('hidden')){
+      if(e.key==='Enter') hideRules();
+      return;
+    }
     if(state.screen==='menu'||state.screen==='gameover') startGame();
     else if(state.screen==='paused') togglePause();
   }
@@ -578,11 +611,16 @@ window.addEventListener('keydown',e=>{
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key)>=0) e.preventDefault();
 });
 window.addEventListener('keyup',e=>{ keys[e.key]=false; });
-startBtn.addEventListener('click',()=>{ initAudio(); startGame(); startBtn.blur(); });
+startBtn.addEventListener('click',()=>{ startGame(); startBtn.blur(); });
 againBtn.addEventListener('click',()=>{ startGame(); againBtn.blur(); });
 rulesBtn.addEventListener('click',showRules);
 rulesCloseBtn.addEventListener('click',()=>{ hideRules(); rulesCloseBtn.blur(); });
-rulesEl.addEventListener('click',e=>{ if(e.target===rulesEl) hideRules(); });
+rulesEl.addEventListener('click',e=>{
+  if(e.target===rulesEl && performance.now()-rulesOpenedAt>350) hideRules();
+});
+pauseResumeBtn.addEventListener('click',()=>{ togglePause(); pauseResumeBtn.blur(); });
+pauseHomeBtn.addEventListener('click',()=>{ goMenu(); pauseHomeBtn.blur(); });
+overHomeBtn.addEventListener('click',()=>{ goMenu(); overHomeBtn.blur(); });
 muteBtn.addEventListener('click',()=>{ initAudio(); toggleMute(); muteBtn.blur(); });
 window.addEventListener('blur',()=>{ if(state.screen==='playing') togglePause(); });
 
