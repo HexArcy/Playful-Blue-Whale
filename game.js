@@ -246,7 +246,7 @@ function updateFish(dt) {
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
     f.x += f.vx * dt; f.y += f.vy * dt; f.wob += dt * f.wobS;
-    if (f.x < vx - 500 || f.x > vx + viewW + 500 || f.y < vy - 500 || f.y > vy + viewH + 500) { fish.splice(i, 1); continue; }
+    if (f.x < vx - 2000 || f.x > vx + viewW + 2000 || f.y < vy - 2000 || f.y > vy + viewH + 2000) { fish.splice(i, 1); continue; }
     if (state.screen === 'playing' && whale.magnetT > 0 && !f.pred && f.r < whale.r * 0.88) {
       const mx = whale.x - f.x, my = whale.y - f.y, md = Math.hypot(mx, my);
       const range = 320 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
