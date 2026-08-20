@@ -77,6 +77,7 @@ let shake = 0, spawnT = 0.8, goldT = 12, gemT = 8, starCd = 20, magnetCd = 18, r
 let combo = 0, comboT = 0, maxCombo = 0;
 let danger = 0;
 let hook = null, hookCd = 20;
+let banner = null;
 
 /* ================= 音效 ================= */
 let AC = null;
@@ -151,9 +152,10 @@ function spawnFish() {
   if (fish.length > Math.min(90, 45 + whale.r / 2)) return;
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
-  let r = rand(8, Math.max(12, whale.r * 1.7));
+  const minR = Math.max(8, whale.r * 0.15);
+  let r = rand(minR, Math.max(minR + 4, whale.r * 1.7));
   const dangerP = 0.22 + Math.min(0.4, whale.r / 140);
-  if (r >= whale.r * 0.88 && Math.random() > dangerP) r = rand(8, Math.max(9, whale.r * 0.75));
+  if (r >= whale.r * 0.88 && Math.random() > dangerP) r = rand(minR, Math.max(minR + 1, whale.r * 0.75));
   let pred = false;
   if (whale.r > 38 && Math.random() < 0.1 && r >= whale.r * 0.95) { r = whale.r * rand(1.15, 1.45); pred = true; }
   const c = PALETTE[randInt(0, PALETTE.length - 1)];
@@ -269,7 +271,7 @@ function eatFish(i) {
   if (f.star) { whale.powerT = 5 + upgEffect('power'); sfx.power(); }
   if (f.magnet) { whale.magnetT = 5 + upgEffect('power'); sfx.power(); }
   if (f.gem && state.lives < 3 + upgEffect('lives')) state.lives++;
-  whale.r = whale.r + (f.golden || f.gem || f.star || f.magnet ? 3 : f.r * 0.10 * (1 + upgEffect('grow') / 100) * (1 / (1 + whale.r / 500)));
+  whale.r = whale.r + (f.golden || f.gem ? 3 : (f.star || f.magnet ? 0 : f.r * 0.10 * (1 + upgEffect('grow') / 100) * (1 / (1 + whale.r / 500))));
   whale.eatT = 0.3;
   if (f.golden) sfx.gold(); else if (f.gem) sfx.heal(); else if (!f.star && !f.magnet) sfx.eat();
   addParts(f.x, f.y, f.golden ? '#ffd166' : (f.gem ? '#6ee86a' : (f.star ? '#ffe66d' : (f.magnet ? '#ff6b9d' : f.c1))), f.golden ? 18 : (f.gem ? 16 : (f.star || f.magnet ? 20 : 8)), 150, 0.6);
@@ -297,7 +299,7 @@ function updateWhale(dt) {
     if (keys['ArrowUp'] || keys['w'] || keys['W']) ay -= 1;
     if (keys['ArrowDown'] || keys['s'] || keys['S']) ay += 1;
     const useKeys = ax !== 0 || ay !== 0;
-    const K = 430 * (1 + upgEffect('speed') / 100);
+    const K = 430 * (1 + upgEffect('speed') / 100) / zoom;
     if (useKeys) {
       const len = Math.hypot(ax, ay) || 1;
       whale.vx = lerp(whale.vx, ax / len * K, Math.min(1, dt * 6));
@@ -353,7 +355,7 @@ function updatePlay(dt) {
   magnetCd -= dt;
   if (magnetCd <= 0) { magnetCd = rand(16, 24); if (whale.magnetT <= 0) spawnMagnet(); }
   rushCd -= dt;
-  if (rushCd <= 0) { rushCd = rand(25, 40); rushActive = 3.0; rushSpawnT = 0; sfx.rush(); addText(whale.x, whale.y - viewH * 0.25, '金鱼潮来袭！', '#ffd166', 26); }
+  if (rushCd <= 0) { rushCd = rand(25, 40); rushActive = 3.0; rushSpawnT = 0; sfx.rush(); showBanner('金鱼潮来袭！', 2.5); }
   if (rushActive > 0) {
     rushActive -= dt; rushSpawnT -= dt;
     if (rushSpawnT <= 0) { spawnGolden(); rushSpawnT = 0.35; }
@@ -361,6 +363,8 @@ function updatePlay(dt) {
   hookCd -= dt;
   if (hookCd <= 0) { hookCd = rand(18, 28); if (whale.r >= 100 && !hook) spawnHook(); }
 }
+function showBanner(text, dur) { banner = { text, t: dur, dur }; }
+function updateBanner(dt) { if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; } }
 function spawnHook() {
   hook = {
     x: whale.x + rand(-0.3, 0.3) * viewW,
@@ -645,6 +649,15 @@ function drawHookWarn() {
   ctx.fillText('鱼钩来袭！', W / 2, 50);
   ctx.textAlign = 'left';
 }
+function drawBanner() {
+  if (!banner) return;
+  const a = Math.min(1, banner.t / 0.4);
+  ctx.fillStyle = 'rgba(255,209,102,' + (0.95 * a) + ')';
+  ctx.font = 'bold 28px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(banner.text, W / 2, H * 0.25);
+  ctx.textAlign = 'left';
+}
 function updateDanger() {
   let minD = 1e9;
   for (const f of fish) {
@@ -680,6 +693,7 @@ function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawVignette();
   drawHookWarn();
+  drawBanner();
 }
 
 /* ================= HUD ================= */
@@ -895,7 +909,7 @@ let lastT = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.033, (now - lastT) / 1000); lastT = now;
-  if (state.screen === 'playing') { updatePlay(dt); updateHook(dt); }
+  if (state.screen === 'playing') { updatePlay(dt); updateHook(dt); updateBanner(dt); }
   updateDecor(dt);
   updateFish(dt);
   updateDanger();
