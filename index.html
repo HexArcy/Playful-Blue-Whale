@@ -19,6 +19,16 @@
   #hearts .off { color:rgba(255,255,255,.25); }
   #hint { position:absolute; bottom:12px; left:0; right:0; text-align:center;
     color:rgba(255,255,255,.55); font-size:13px; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+  #combo { position:absolute; top:62px; left:0; right:0; text-align:center;
+    font-size:24px; font-weight:700; color:#ffe66d; text-shadow:0 2px 8px rgba(0,0,0,.5);
+    letter-spacing:1px; }
+  #combo.pop { animation:comboPop .22s ease-out; }
+  @keyframes comboPop { 0%{transform:scale(1.6)} 100%{transform:scale(1)} }
+  #power { position:absolute; top:98px; left:50%; transform:translateX(-50%);
+    font-size:15px; font-weight:700; padding:4px 14px; border-radius:16px;
+    color:#fff; white-space:nowrap; }
+  #power.power { color:#ffe66d; background:rgba(0,0,0,.35); }
+  #power.magnet { color:#ff9ec2; background:rgba(0,0,0,.35); }
   #muteBtn { position:fixed; bottom:12px; right:12px; z-index:6; width:40px; height:40px;
     border-radius:50%; border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12);
     color:#fff; font-size:18px; cursor:pointer; }
@@ -49,6 +59,11 @@
   .btn-ghost:hover { background:rgba(255,255,255,.3); border-color:rgba(255,255,255,.9);
     box-shadow:0 8px 22px rgba(30,110,230,.6); }
   .btn-ghost:active { background:rgba(255,255,255,.18); box-shadow:none; }
+  .rules-box { max-width:580px; width:88%; max-height:60vh; overflow-y:auto;
+    text-align:left; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.25);
+    border-radius:14px; padding:18px 22px; font-size:15px; line-height:1.9; color:#eaf4ff; }
+  .rules-box b { color:#ffe66d; }
+  .rules-box .rule { margin-bottom:6px; }
   h1.big { font-size:clamp(40px,8vw,80px); letter-spacing:4px; text-shadow:0 4px 16px rgba(0,0,0,.5); }
   .scoreLine { font-size:22px; color:#eaf4ff; }
   .scoreLine b { font-size:34px; color:#ffe66d; }
@@ -65,20 +80,23 @@
     <div id="hearts"></div>
     <div>最高 <b id="highVal">0</b></div>
   </div>
+  <div id="combo"></div>
+  <div id="power"></div>
   <div id="hint">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
 </div>
 <button id="muteBtn" title="静音 (M)">🔊</button>
 <div id="menu" class="overlay">
   <div class="title">贪玩蓝鲸</div>
   <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
-  <div class="tip">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
   <div class="btn" id="startBtn">开 始 游 戏</div>
-  <div class="tip">鼠标 / 触屏 / 方向键(WASD) 控制 · 空格开始 · M 静音</div>
+  <div class="btn btn-ghost" id="rulesBtn">查 看 规 则</div>
+  <div class="tip">鼠标 / WASD 控制 · 空格开始 · P 暂停 · M 静音</div>
 </div>
 <div id="over" class="overlay hidden">
   <h1 class="big">游戏结束</h1>
   <div class="scoreLine">得分 <b id="finalScore">0</b></div>
   <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
+  <div class="scoreLine">最高连击 <b id="finalCombo">x0</b></div>
   <div id="record" class="record hidden">🏆 新纪录！</div>
   <div class="btn" id="againBtn">再 玩 一 次</div>
   <div class="btn btn-ghost" id="overHomeBtn">返回主页</div>
@@ -89,6 +107,23 @@
   <div class="btn" id="pauseResumeBtn">继 续 游 戏</div>
   <div class="btn btn-ghost" id="pauseHomeBtn">返回主页</div>
   <div class="tip">P / Esc 继续 · M 静音</div>
+</div>
+<div id="rules" class="overlay hidden">
+  <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">游戏规则</h1>
+  <div class="rules-box">
+    <div class="rule"><b>操作</b>：鼠标移动 / WASD 或方向键 · 空格开始 · P/Esc 暂停 · M 静音</div>
+    <div class="rule"><b>目标</b>：吃小鱼长大，别被大鱼吃掉</div>
+    <div class="rule"><b>小鱼</b>：吃掉加分并长大（体型有上限）</div>
+    <div class="rule"><b>金鱼</b>（金色）：+200 分，长得更多</div>
+    <div class="rule"><b>绿宝石鱼</b>（绿色）：+100 分，回 1 点生命</div>
+    <div class="rule"><b>大鱼</b>（灰色）：体型比你大，碰到扣 1 命并被击退</div>
+    <div class="rule"><b>连击</b>：2 秒内连续吃鱼叠加倍率 x1 → x1.5 → x2 → x2.5 → x3，断连归零</div>
+    <div class="rule"><b>星星</b>（金色星形）：5 秒无敌，期间可撞吃大鱼</div>
+    <div class="rule"><b>磁铁</b>（粉色）：5 秒自动吸附附近小鱼</div>
+    <div class="rule"><b>金鱼潮</b>：随机触发，大量金鱼来袭</div>
+    <div class="rule"><b>生命</b>：共 3 条命，归零游戏结束</div>
+  </div>
+  <div class="btn" id="rulesBackBtn">返 回</div>
 </div>
 <script>
 'use strict';
@@ -101,12 +136,13 @@ const store={
   get(k,d){ try{ const v=localStorage.getItem(k); return v===null?d:v; }catch(e){ return d; } },
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 };
+function comboMult(c){ return c>=20?3:c>=12?2.5:c>=7?2:c>=3?1.5:1; }
 
 /* ================= 画布 ================= */
 const canvas=document.getElementById('game');
 const ctx=canvas.getContext('2d');
 let W=0,H=0;
-let bgGrad=null,sandGrad=null,vigGrad=null;
+let bgGrad=null,sandGrad=null,vigGrad=null,dangerGrad=null;
 function resize(){
   const dpr=Math.min(window.devicePixelRatio||1,2);
   W=window.innerWidth; H=window.innerHeight;
@@ -123,6 +159,8 @@ function buildGrads(){
   sandGrad.addColorStop(0,'rgba(216,179,106,0)'); sandGrad.addColorStop(0.5,'rgba(216,179,106,0.85)'); sandGrad.addColorStop(1,'#c99b4e');
   vigGrad=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.45,W/2,H/2,Math.max(W,H)*0.75);
   vigGrad.addColorStop(0,'rgba(0,0,0,0)'); vigGrad.addColorStop(1,'rgba(0,10,40,0.35)');
+  dangerGrad=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.max(W,H)*0.75);
+  dangerGrad.addColorStop(0,'rgba(255,0,0,0)'); dangerGrad.addColorStop(1,'rgba(255,30,30,0.6)');
 }
 window.addEventListener('resize',resize);
 
@@ -131,10 +169,12 @@ const state={ screen:'menu', score:0, high:parseInt(store.get('twlj_high','0'),1
 const keys={};
 const mouse={x:0,y:0,lastMove:-1e9};
 
-const whale={x:0,y:0,vx:0,vy:0,r:26,facing:1,wobble:0,eatT:0,inv:0};
+const whale={x:0,y:0,vx:0,vy:0,r:26,facing:1,wobble:0,eatT:0,inv:0,powerT:0,magnetT:0};
 let quote=null, quoteT=6, trailT=0;
 let fish=[], parts=[], bubbles=[], seaweeds=[], rays=[], sandDots=[];
-let shake=0, spawnT=0.8, goldT=12, gemT=8;
+let shake=0, spawnT=0.8, goldT=12, gemT=8, starCd=20, magnetCd=18, rushCd=30, rushActive=0, rushSpawnT=0;
+let combo=0, comboT=0, maxCombo=0;
+let danger=0;
 
 /* ================= 音效 ================= */
 let AC=null;
@@ -163,18 +203,43 @@ const sfx={
   hurt:()=>tone(220,70,0.35,'sawtooth',0.2),
   heal:()=>{ tone(523,784,0.12,'sine',0.16); setTimeout(()=>tone(784,1046,0.16,'triangle',0.15),100); },
   die:()=>{ tone(320,60,0.9,'sawtooth',0.22); setTimeout(()=>tone(180,50,0.7,'sawtooth',0.18),250); },
-  start:()=>{ tone(520,780,0.12,'triangle',0.15); setTimeout(()=>tone(780,1040,0.14,'triangle',0.13),110); }
+  start:()=>{ tone(520,780,0.12,'triangle',0.15); setTimeout(()=>tone(780,1040,0.14,'triangle',0.13),110); },
+  power:()=>{ tone(300,900,0.3,'sine',0.18); setTimeout(()=>tone(600,1200,0.25,'triangle',0.14),120); },
+  rush:()=>{ tone(440,880,0.18,'triangle',0.18); setTimeout(()=>tone(880,1320,0.2,'triangle',0.16),150); }
 };
 
 /* ================= 场景装饰 ================= */
 const QUOTES=['是兄弟就来喂我！','大渣好，我系渣渣鲸','贪玩蓝鲸，一刀999','好饿啊~','喂我喂我！','今天也要努力干饭！','呜哇哇哇~~~'];
-function initDecor(){
-  bubbles=[]; for(let i=0;i<Math.min(46,W/18);i++)
-    bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(2,9),sp:rand(12,42),ph:rand(0,6.28)});
+let prevW=0, prevH=0;
+function genDecor(){
+  bubbles=[]; const bn=Math.min(46,W/18);
+  for(let i=0;i<bn;i++) bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(2,9),sp:rand(12,42),ph:rand(0,6.28)});
   seaweeds=[]; const n=Math.max(6,Math.round(W/80));
   for(let i=0;i<n;i++) seaweeds.push({x:rand(0,W),h:rand(60,170),w:rand(7,14),ph:rand(0,6.28),sp:rand(0.7,1.7)});
   rays=[]; for(let i=0;i<6;i++) rays.push({x:rand(0,W),w:rand(60,160),sp:rand(6,16)});
   sandDots=[]; for(let i=0;i<90;i++) sandDots.push({x:rand(0,W),y:rand(H-52,H-6),r:rand(0.8,2.4),a:rand(0.08,0.3)});
+}
+function initDecor(){
+  if(prevW>0 && (prevW!==W || prevH!==H)){
+    const sx=W/prevW, sy=H/prevH;
+    for(const b of bubbles){ b.x*=sx; b.y*=sy; }
+    for(const s of seaweeds){ s.x*=sx; }
+    for(const r of rays){ r.x*=sx; }
+    for(const d of sandDots){ d.x*=sx; d.y=H-(prevH-d.y); }
+    const bn=Math.min(46,W/18);
+    while(bubbles.length<bn) bubbles.push({x:rand(0,W),y:rand(0,H),r:rand(2,9),sp:rand(12,42),ph:rand(0,6.28)});
+    if(bubbles.length>bn) bubbles.length=bn;
+    const n=Math.max(6,Math.round(W/80));
+    while(seaweeds.length<n) seaweeds.push({x:rand(0,W),h:rand(60,170),w:rand(7,14),ph:rand(0,6.28),sp:rand(0.7,1.7)});
+    if(seaweeds.length>n) seaweeds.length=n;
+    while(rays.length<6) rays.push({x:rand(0,W),w:rand(60,160),sp:rand(6,16)});
+    if(rays.length>6) rays.length=6;
+    while(sandDots.length<90) sandDots.push({x:rand(0,W),y:rand(H-52,H-6),r:rand(0.8,2.4),a:rand(0.08,0.3)});
+    if(sandDots.length>90) sandDots.length=90;
+  } else if(prevW===0){
+    genDecor();
+  }
+  prevW=W; prevH=H;
 }
 
 /* ================= 鱼类 ================= */
@@ -208,6 +273,18 @@ function spawnGem(){
   fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(50,90), vy:rand(-10,10),
     r:rand(12,16), dir, pred:false, c1:'#5fe37c', c2:'#1f9e4d', wob:0, wobS:5, golden:false, gem:true, harmless:false });
 }
+function spawnStar(){
+  const fromLeft=Math.random()<0.5;
+  const dir=fromLeft?1:-1;
+  fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(50,85), vy:rand(-10,10),
+    r:rand(13,17), dir, pred:false, c1:'#ffe66d', c2:'#f5a623', wob:0, wobS:5, golden:false, gem:false, star:true, harmless:false });
+}
+function spawnMagnet(){
+  const fromLeft=Math.random()<0.5;
+  const dir=fromLeft?1:-1;
+  fish.push({ x:fromLeft?-40:W+40, y:rand(H*0.15,H*0.85), vx:dir*rand(50,85), vy:rand(-10,10),
+    r:rand(12,16), dir, pred:false, c1:'#ff6b9d', c2:'#c2255c', wob:0, wobS:5, golden:false, gem:false, magnet:true, harmless:false });
+}
 
 /* ================= 粒子 ================= */
 function addParts(x,y,color,n,spd,life){
@@ -216,7 +293,7 @@ function addParts(x,y,color,n,spd,life){
     parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(life*0.5,life),max:life,r:rand(1.5,4.5),color,bub:Math.random()<0.3});
   }
 }
-function addText(x,y,text,color){ parts.push({x,y,vx:0,vy:-46,life:0.9,max:0.9,r:0,color,text}); }
+function addText(x,y,text,color,size){ parts.push({x,y,vx:0,vy:-46,life:0.9,max:0.9,r:0,color,text,size:size||15}); }
 function updateParticles(dt){
   for(let i=parts.length-1;i>=0;i--){
     const p=parts[i]; p.life-=dt;
@@ -230,7 +307,7 @@ function drawParticles(){
     const a=clamp(p.life/p.max,0,1);
     if(p.text){
       ctx.globalAlpha=a; ctx.fillStyle=p.color;
-      ctx.font='bold 15px "Microsoft YaHei",sans-serif'; ctx.textAlign='center';
+      ctx.font='bold '+(p.size||15)+'px "Microsoft YaHei",sans-serif'; ctx.textAlign='center';
       ctx.fillText(p.text,p.x,p.y); ctx.globalAlpha=1; continue;
     }
     if(p.bub){ ctx.globalAlpha=a*0.6; ctx.strokeStyle=p.color; ctx.lineWidth=1.5;
@@ -252,25 +329,37 @@ function updateFish(dt){
     const f=fish[i];
     f.x+=f.vx*dt; f.y+=f.vy*dt; f.wob+=dt*f.wobS;
     if(f.x<-160||f.x>W+160||f.y<-160||f.y>H+160){ fish.splice(i,1); continue; }
+    if(state.screen==='playing'&&whale.magnetT>0&&!f.pred&&f.r<whale.r*0.88){
+      const mx=whale.x-f.x, my=whale.y-f.y, md=Math.hypot(mx,my);
+      if(md<320&&md>1){ f.x+=mx/md*220*dt; f.y+=my/md*220*dt; }
+    }
     if(state.screen==='playing'&&!f.harmless&&whale.inv<=0){
       const dx=whale.x-f.x, dy=whale.y-f.y;
       const rr=whale.r*0.75+f.r*0.85;
       if(dx*dx+dy*dy<rr*rr){
-        if(f.golden||f.gem||f.r<whale.r*0.88) eatFish(i); else hurtBy(i);
+        if(f.golden||f.gem||f.star||f.magnet||whale.powerT>0||f.r<whale.r*0.88) eatFish(i); else hurtBy(i);
       }
     }
   }
 }
 function eatFish(i){
   const f=fish[i];
-  const pts=f.golden?200:(f.gem?100:Math.round(f.r)*3);
+  combo++; comboT=2.0; maxCombo=Math.max(maxCombo,combo);
+  const mult=comboMult(combo);
+  let pts=f.golden?200:(f.gem?100:(f.star||f.magnet?0:Math.round(f.r)*3));
+  if(pts>0) pts=Math.round(pts*mult);
   state.score+=pts;
+  if(f.star){ whale.powerT=5; sfx.power(); }
+  if(f.magnet){ whale.magnetT=5; sfx.power(); }
   if(f.gem && state.lives<3) state.lives++;
-  whale.r=Math.min(90,whale.r+(f.golden||f.gem?3:f.r*0.10*(1-whale.r/150)));
+  whale.r=Math.min(90,whale.r+(f.golden||f.gem||f.star||f.magnet?3:f.r*0.10*(1-whale.r/150)));
   whale.eatT=0.3;
-  if(f.golden) sfx.gold(); else if(f.gem) sfx.heal(); else sfx.eat();
-  addParts(f.x,f.y, f.golden?'#ffd166':(f.gem?'#6ee86a':f.c1), f.golden?18:(f.gem?16:8), 150, 0.6);
-  if(f.gem) addText(f.x,f.y-10,'+1 ❤','#6ee86a'); else addText(f.x,f.y-10,'+'+pts,'#ffe66d');
+  if(f.golden) sfx.gold(); else if(f.gem) sfx.heal(); else if(!f.star&&!f.magnet) sfx.eat();
+  addParts(f.x,f.y, f.golden?'#ffd166':(f.gem?'#6ee86a':(f.star?'#ffe66d':(f.magnet?'#ff6b9d':f.c1))), f.golden?18:(f.gem?16:(f.star||f.magnet?20:8)), 150, 0.6);
+  if(f.gem) addText(f.x,f.y-10,'+1 ❤','#6ee86a');
+  else if(f.star) addText(f.x,f.y-10,'无敌 5s!','#ffe66d');
+  else if(f.magnet) addText(f.x,f.y-10,'磁铁 5s!','#ff6b9d');
+  else { const sz=combo>=12?22:(combo>=3?19:15); addText(f.x,f.y-10,'+'+pts,(combo>=3?'#ff9d00':'#ffe66d'),sz); }
   fish.splice(i,1);
 }
 function hurtBy(i){
@@ -315,6 +404,8 @@ function updateWhale(dt){
   whale.wobble+=dt*4;
   whale.eatT=Math.max(0,whale.eatT-dt);
   if(whale.inv>0) whale.inv-=dt;
+  if(whale.powerT>0) whale.powerT-=dt;
+  if(whale.magnetT>0) whale.magnetT-=dt;
   trailT-=dt;
   if(trailT<=0){
     trailT=0.16;
@@ -330,6 +421,7 @@ function updateWhale(dt){
 }
 function updatePlay(dt){
   state.time+=dt;
+  if(combo>0){ comboT-=dt; if(comboT<=0) combo=0; }
   spawnT-=dt;
   if(spawnT<=0){
     spawnFish(); if(Math.random()<0.3) spawnFish();
@@ -339,6 +431,16 @@ function updatePlay(dt){
   if(goldT<=0){ spawnGolden(); goldT=rand(14,22); }
   gemT-=dt;
   if(gemT<=0){ gemT=rand(15,24); if(state.lives<3) spawnGem(); }
+  starCd-=dt;
+  if(starCd<=0){ starCd=rand(18,25); if(whale.powerT<=0) spawnStar(); }
+  magnetCd-=dt;
+  if(magnetCd<=0){ magnetCd=rand(16,24); if(whale.magnetT<=0) spawnMagnet(); }
+  rushCd-=dt;
+  if(rushCd<=0){ rushCd=rand(25,40); rushActive=3.0; rushSpawnT=0; sfx.rush(); addText(W/2,H*0.3,'金鱼潮来袭！','#ffd166',26); }
+  if(rushActive>0){
+    rushActive-=dt; rushSpawnT-=dt;
+    if(rushSpawnT<=0){ spawnGolden(); rushSpawnT=0.35; }
+  }
 }
 
 /* ================= 绘制 ================= */
@@ -403,6 +505,42 @@ function drawGemFish(f,r){
   ctx.fillStyle='#0c5e2e';
   ctx.beginPath(); ctx.arc(r*0.37,-r*0.14,r*0.065,0,6.283); ctx.fill();
 }
+function drawStarFish(f,r){
+  ctx.shadowColor='#ffe66d'; ctx.shadowBlur=22;
+  ctx.fillStyle='#ffd166';
+  ctx.beginPath();
+  for(let k=0;k<10;k++){
+    const ang=-Math.PI/2+k*Math.PI/5;
+    const rad=(k%2===0)?r*1.1:r*0.5;
+    const px=Math.cos(ang)*rad, py=Math.sin(ang)*rad;
+    if(k===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.12,-r*0.08,r*0.22,0,6.283); ctx.fill();
+  ctx.fillStyle='#b8860b'; ctx.beginPath(); ctx.arc(r*0.16,-r*0.08,r*0.11,0,6.283); ctx.fill();
+}
+function drawMagnetFish(f,r){
+  ctx.shadowColor='#ff6b9d'; ctx.shadowBlur=18;
+  const g=ctx.createLinearGradient(-r,0,r,0);
+  g.addColorStop(0,'#ff9ec2'); g.addColorStop(1,'#c2255c');
+  ctx.fillStyle=g;
+  const ty=Math.sin(f.wob)*r*0.4;
+  ctx.beginPath();
+  ctx.moveTo(-r*0.68,0);
+  ctx.quadraticCurveTo(-r*1.12,-r*0.32,-r*1.32,-r*0.72+ty);
+  ctx.lineTo(-r*1.02,0);
+  ctx.lineTo(-r*1.32,r*0.72+ty);
+  ctx.quadraticCurveTo(-r*1.12,r*0.32,-r*0.68,0);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(r*0.08,0,r*0.95,r*0.58,0,0,6.283); ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#fff';
+  ctx.fillRect(r*0.28,-r*0.5,r*0.16,r*0.32);
+  ctx.fillRect(r*0.28,r*0.18,r*0.16,r*0.32);
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(r*0.55,-r*0.1,r*0.16,0,6.283); ctx.fill();
+  ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(r*0.58,-r*0.1,r*0.08,0,6.283); ctx.fill();
+}
 function drawFishAll(){
   for(const f of fish){
     ctx.save(); ctx.translate(f.x,f.y);
@@ -410,6 +548,8 @@ function drawFishAll(){
     const r=f.r;
     ctx.rotate(Math.sin(f.wob)*0.18);
     if(f.gem){ drawGemFish(f,r); ctx.restore(); continue; }
+    if(f.star){ drawStarFish(f,r); ctx.restore(); continue; }
+    if(f.magnet){ drawMagnetFish(f,r); ctx.restore(); continue; }
     if(f.golden){ ctx.shadowColor='#ffd166'; ctx.shadowBlur=20; }
     const g=ctx.createLinearGradient(-r,0,r,0);
     if(f.golden){ g.addColorStop(0,'#ffe08a'); g.addColorStop(1,'#f59f1c'); }
@@ -511,8 +651,24 @@ function drawWhaleC(){
     ctx.textAlign='left';
   }
 }
+function updateDanger(){
+  let minD=1e9;
+  for(const f of fish){
+    if(f.pred && f.r>=whale.r*0.88){
+      const dx=whale.x-f.x, dy=whale.y-f.y, d=Math.hypot(dx,dy);
+      if(d<minD) minD=d;
+    }
+  }
+  const target=clamp(1-minD/400,0,1);
+  danger=lerp(danger,target,0.08);
+}
 function drawVignette(){
   ctx.fillStyle=vigGrad; ctx.fillRect(0,0,W,H);
+  if(danger>0.02){
+    ctx.globalAlpha=danger*0.6;
+    ctx.fillStyle=dangerGrad; ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=1;
+  }
 }
 function render(){
   ctx.clearRect(0,0,W,H);
@@ -531,6 +687,8 @@ const scoreVal=document.getElementById('scoreVal');
 const highVal=document.getElementById('highVal');
 const heartsEl=document.getElementById('hearts');
 const hintEl=document.getElementById('hint');
+const comboEl=document.getElementById('combo');
+const powerEl=document.getElementById('power');
 const heartsSpans=[];
 for(let i=0;i<3;i++){
   const s=document.createElement('span');
@@ -538,13 +696,27 @@ for(let i=0;i<3;i++){
   heartsEl.appendChild(s);
   heartsSpans.push(s);
 }
-let hudScore=-1,hudHigh=-1,hudLives=-1;
+let hudScore=-1,hudHigh=-1,hudLives=-1,hudCombo=-1,hudPower='';
 function updateHUD(){
   if(state.score!==hudScore){ hudScore=state.score; scoreVal.textContent=state.score; }
   if(state.high!==hudHigh){ hudHigh=state.high; highVal.textContent=state.high; }
   if(state.lives!==hudLives){
     hudLives=state.lives;
     for(let i=0;i<3;i++) heartsSpans[i].className=i<state.lives?'on':'off';
+  }
+  if(combo!==hudCombo){
+    hudCombo=combo;
+    if(combo>=2){
+      comboEl.textContent='x'+combo+' 连击 · '+comboMult(combo)+'x';
+      comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
+    } else comboEl.textContent='';
+  }
+  const pNow=whale.powerT>0?('power|'+Math.ceil(whale.powerT)):(whale.magnetT>0?('magnet|'+Math.ceil(whale.magnetT)):'');
+  if(pNow!==hudPower){
+    hudPower=pNow;
+    if(whale.powerT>0){ powerEl.textContent='无敌 '+Math.ceil(whale.powerT)+'s'; powerEl.className='power'; }
+    else if(whale.magnetT>0){ powerEl.textContent='磁铁 '+Math.ceil(whale.magnetT)+'s'; powerEl.className='magnet'; }
+    else { powerEl.textContent=''; powerEl.className=''; }
   }
 }
 
@@ -554,6 +726,7 @@ const overEl=document.getElementById('over');
 const pauseEl=document.getElementById('pause');
 const finalScore=document.getElementById('finalScore');
 const finalHigh=document.getElementById('finalHigh');
+const finalCombo=document.getElementById('finalCombo');
 const recordEl=document.getElementById('record');
 const startBtn=document.getElementById('startBtn');
 const againBtn=document.getElementById('againBtn');
@@ -561,18 +734,23 @@ const muteBtn=document.getElementById('muteBtn');
 const pauseResumeBtn=document.getElementById('pauseResumeBtn');
 const pauseHomeBtn=document.getElementById('pauseHomeBtn');
 const overHomeBtn=document.getElementById('overHomeBtn');
+const rulesEl=document.getElementById('rules');
+const rulesBtn=document.getElementById('rulesBtn');
+const rulesBackBtn=document.getElementById('rulesBackBtn');
 
 function showOverlay(el,show){ el.classList.toggle('hidden',!show); }
 function startGame(){
   initAudio(); sfx.start();
   state.screen='playing'; state.score=0; state.lives=3; state.time=0;
   whale.x=W/2; whale.y=H*0.6; whale.vx=0; whale.vy=0;
-  whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1;
+  whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1; whale.powerT=0; whale.magnetT=0;
   fish=[]; parts=[]; quote=null; quoteT=6;
   spawnT=0.8; goldT=12; gemT=8; shake=0;
+  starCd=20; magnetCd=18; rushCd=30; rushActive=0; rushSpawnT=0;
+  combo=0; comboT=0; maxCombo=0; danger=0;
   mouse.lastMove=-1e9;
-  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false);
-  hintEl.textContent='移动鼠标 / 滑动屏幕 控制小蓝鲸 · P 暂停 · M 静音';
+  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false);
+  hintEl.textContent='移动鼠标 控制小蓝鲸 · P 暂停 · M 静音';
 }
 function gameOver(){
   state.screen='gameover';
@@ -581,6 +759,7 @@ function gameOver(){
   if(isRecord){ state.high=state.score; store.set('twlj_high',String(state.high)); }
   finalScore.textContent=state.score;
   finalHigh.textContent=state.high;
+  finalCombo.textContent='x'+maxCombo;
   recordEl.classList.toggle('hidden',!isRecord);
   showOverlay(overEl,true);
   hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
@@ -595,9 +774,10 @@ function toggleMute(){
 }
 function goMenu(){
   state.screen='menu'; state.score=0; state.lives=3;
-  whale.r=26; whale.inv=0; whale.eatT=0;
+  whale.r=26; whale.inv=0; whale.eatT=0; whale.powerT=0; whale.magnetT=0;
   fish=[]; parts=[]; quote=null; shake=0;
-  showOverlay(menuEl,true); showOverlay(overEl,false); showOverlay(pauseEl,false);
+  combo=0; comboT=0; maxCombo=0; danger=0;
+  showOverlay(menuEl,true); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false);
   hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
 }
 
@@ -621,7 +801,8 @@ window.addEventListener('keydown',e=>{
     else if(state.screen==='paused') togglePause();
   }
   if(e.key==='p'||e.key==='P'||e.key==='Escape'){
-    if(state.screen==='playing'||state.screen==='paused') togglePause();
+    if(e.key==='Escape' && !rulesEl.classList.contains('hidden')){ showOverlay(rulesEl,false); }
+    else if(state.screen==='playing'||state.screen==='paused') togglePause();
   }
   if(e.key==='m'||e.key==='M') toggleMute();
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key)>=0) e.preventDefault();
@@ -633,6 +814,8 @@ muteBtn.addEventListener('click',()=>{ initAudio(); toggleMute(); muteBtn.blur()
 pauseResumeBtn.addEventListener('click',()=>{ togglePause(); pauseResumeBtn.blur(); });
 pauseHomeBtn.addEventListener('click',()=>{ goMenu(); pauseHomeBtn.blur(); });
 overHomeBtn.addEventListener('click',()=>{ goMenu(); overHomeBtn.blur(); });
+rulesBtn.addEventListener('click',()=>{ initAudio(); showOverlay(rulesEl,true); rulesBtn.blur(); });
+rulesBackBtn.addEventListener('click',()=>{ showOverlay(rulesEl,false); rulesBackBtn.blur(); });
 window.addEventListener('blur',()=>{ if(state.screen==='playing') togglePause(); });
 
 /* ================= 主循环 ================= */
@@ -646,6 +829,7 @@ function loop(now){
   if(state.screen==='playing') updatePlay(dt);
   updateDecor(dt);
   updateFish(dt);
+  updateDanger();
   updateWhale(dt);
   updateParticles(dt);
   if(shake>0) shake=Math.max(0,shake-dt);
