@@ -12,34 +12,43 @@ function comboMult(c) { return c >= 20 ? 3 : c >= 12 ? 2.5 : c >= 7 ? 2 : c >= 3
 
 /* ================= 养成 ================= */
 const UPGRADES = [
-  { id: 'lives', name: '生命上限', desc: '每局开局生命', inc: 1, base: 150, fmt: v => '+' + v + ' 命' },
-  { id: 'size', name: '初始体型', desc: '开局鲸鱼更大', inc: 4, base: 100, fmt: v => '+' + v },
+  { id: 'lives', name: '生命上限', desc: '每局开局生命', inc: 1, base: 150, max: 4, fmt: v => '+' + v + ' 命' },
+  { id: 'size', name: '初始体型', desc: '开局鲸鱼更大', inc: 4, base: 100, max: 5, fmt: v => '+' + v },
   { id: 'grow', name: '成长速度', desc: '吃鱼体型增幅', inc: 12, base: 100, fmt: v => '+' + v + '%' },
-  { id: 'speed', name: '移动速度', desc: '游动速度', inc: 8, base: 100, fmt: v => '+' + v + '%' },
-  { id: 'combo', name: '连击窗口', desc: '断连倒计时', inc: 0.4, base: 80, fmt: v => '+' + (Math.round(v * 10) / 10) + 's' },
-  { id: 'power', name: '道具时长', desc: '星星/磁铁持续', inc: 1, base: 100, fmt: v => '+' + v + 's' },
+  { id: 'speed', name: '移动速度', desc: '游动速度', inc: 8, base: 100, max: 10, fmt: v => '+' + v + '%' },
+  { id: 'combo', name: '连击窗口', desc: '断连倒计时', inc: 0.4, base: 80, max: 10, fmt: v => '+' + (Math.round(v * 10) / 10) + 's' },
+  { id: 'power', name: '道具时长', desc: '星星/磁铁持续', inc: 1, base: 100, max: 10, fmt: v => '+' + v + 's' },
+  { id: 'magnetRange', name: '磁吸范围', desc: '磁铁吸附半径', inc: 40, base: 100, max: 5, fmt: v => '+' + v },
+  { id: 'magnetSpeed', name: '磁吸速度', desc: '磁铁吸附速度', inc: 20, base: 80, max: 5, fmt: v => '+' + v },
   { id: 'score', name: '得分加成', desc: '全局分数', inc: 10, base: 150, fmt: v => '+' + v + '%' },
 ];
 function loadUpg() { try { return JSON.parse(store.get('twlj_upg', '{}')) || {}; } catch (e) { return {}; } }
 let gold = parseInt(store.get('twlj_gold', '0'), 10) || 0;
 let upg = loadUpg();
-function upgEffect(id) { const u = UPGRADES.find(x => x.id === id); return u.inc * (upg[id] || 0); }
-function upgPrice(id) { const u = UPGRADES.find(x => x.id === id); return Math.round(u.base * Math.pow(1.6, upg[id] || 0)); }
+function upgEffect(id) { const u = UPGRADES.find(x => x.id === id); const lv = Math.min(upg[id] || 0, u.max || Infinity); return u.inc * lv; }
+function upgPrice(id) { const u = UPGRADES.find(x => x.id === id); const lv = upg[id] || 0; if (u.max && lv >= u.max) return null; return Math.round(u.base * Math.pow(1.6, lv)); }
 function saveUpg() { store.set('twlj_upg', JSON.stringify(upg)); store.set('twlj_gold', String(gold)); }
 
 /* ================= 画布 ================= */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let W = 0, H = 0;
+let dpr = 1, zoom = 1, viewW = 0, viewH = 0, vx = 0, vy = 0;
 let bgGrad = null, sandGrad = null, vigGrad = null, dangerGrad = null;
 function resize() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   initDecor();
   buildGrads();
+  updateCamera();
+}
+function updateCamera() {
+  zoom = whale.r <= 90 ? 1 : 90 / whale.r;
+  viewW = W / zoom; viewH = H / zoom;
+  vx = whale.x - viewW / 2; vy = whale.y - viewH / 2;
 }
 function buildGrads() {
   bgGrad = ctx.createLinearGradient(0, 0, 0, H);
@@ -64,6 +73,7 @@ let fish = [], parts = [], bubbles = [], seaweeds = [], rays = [], sandDots = []
 let shake = 0, spawnT = 0.8, goldT = 12, gemT = 8, starCd = 20, magnetCd = 18, rushCd = 30, rushActive = 0, rushSpawnT = 0;
 let combo = 0, comboT = 0, maxCombo = 0;
 let danger = 0;
+let hook = null, hookCd = 20;
 
 /* ================= 音效 ================= */
 let AC = null;
@@ -94,7 +104,8 @@ const sfx = {
   die: () => { tone(320, 60, 0.9, 'sawtooth', 0.22); setTimeout(() => tone(180, 50, 0.7, 'sawtooth', 0.18), 250); },
   start: () => { tone(520, 780, 0.12, 'triangle', 0.15); setTimeout(() => tone(780, 1040, 0.14, 'triangle', 0.13), 110); },
   power: () => { tone(300, 900, 0.3, 'sine', 0.18); setTimeout(() => tone(600, 1200, 0.25, 'triangle', 0.14), 120); },
-  rush: () => { tone(440, 880, 0.18, 'triangle', 0.18); setTimeout(() => tone(880, 1320, 0.2, 'triangle', 0.16), 150); }
+  rush: () => { tone(440, 880, 0.18, 'triangle', 0.18); setTimeout(() => tone(880, 1320, 0.2, 'triangle', 0.16), 150); },
+  hook: () => { tone(180, 420, 0.28, 'square', 0.12); setTimeout(() => tone(180, 420, 0.28, 'square', 0.12), 350); }
 };
 
 /* ================= 场景装饰 ================= */
@@ -134,7 +145,7 @@ function initDecor() {
 /* ================= 鱼类 ================= */
 const PALETTE = [['#f0a35e', '#d97a2e'], ['#e86a5e', '#c23f3f'], ['#5ec4e8', '#2f8fc0'], ['#8f7ee8', '#6a54c9'], ['#7ed6a0', '#46a86e'], ['#e85ec4', '#bd3f9e']];
 function spawnFish() {
-  if (fish.length > 45) return;
+  if (fish.length > Math.min(90, 45 + whale.r / 2)) return;
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   let r = rand(8, Math.max(12, whale.r * 1.7));
@@ -144,7 +155,7 @@ function spawnFish() {
   if (whale.r > 38 && Math.random() < 0.1 && r >= whale.r * 0.95) { r = whale.r * rand(1.15, 1.45); pred = true; }
   const c = PALETTE[randInt(0, PALETTE.length - 1)];
   fish.push({
-    x: fromLeft ? -60 : W + 60, y: rand(H * 0.12, H * 0.88),
+    x: fromLeft ? vx - 60 : vx + viewW + 60, y: rand(vy + viewH * 0.12, vy + viewH * 0.88),
     vx: dir * rand(60, 140) * (1 + Math.min(1, state.time / 240) * 0.7) * (pred ? 0.55 : 1),
     vy: rand(-15, 15), r, dir, pred, c1: c[0], c2: c[1],
     wob: rand(0, 6.28), wobS: rand(4, 8), golden: false, harmless: false
@@ -154,7 +165,7 @@ function spawnGolden() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? -40 : W + 40, y: rand(H * 0.15, H * 0.85), vx: dir * rand(55, 95), vy: rand(-10, 10),
+    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(55, 95), vy: rand(-10, 10),
     r: rand(11, 15), dir, pred: false, c1: '#ffd166', c2: '#f59f1c', wob: 0, wobS: 6, golden: true, harmless: false
   });
 }
@@ -162,7 +173,7 @@ function spawnGem() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? -40 : W + 40, y: rand(H * 0.15, H * 0.85), vx: dir * rand(50, 90), vy: rand(-10, 10),
+    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 90), vy: rand(-10, 10),
     r: rand(12, 16), dir, pred: false, c1: '#5fe37c', c2: '#1f9e4d', wob: 0, wobS: 5, golden: false, gem: true, harmless: false
   });
 }
@@ -170,7 +181,7 @@ function spawnStar() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? -40 : W + 40, y: rand(H * 0.15, H * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
+    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
     r: rand(13, 17), dir, pred: false, c1: '#ffe66d', c2: '#f5a623', wob: 0, wobS: 5, golden: false, gem: false, star: true, harmless: false
   });
 }
@@ -178,7 +189,7 @@ function spawnMagnet() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? -40 : W + 40, y: rand(H * 0.15, H * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
+    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
     r: rand(12, 16), dir, pred: false, c1: '#ff6b9d', c2: '#c2255c', wob: 0, wobS: 5, golden: false, gem: false, magnet: true, harmless: false
   });
 }
@@ -229,10 +240,11 @@ function updateFish(dt) {
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
     f.x += f.vx * dt; f.y += f.vy * dt; f.wob += dt * f.wobS;
-    if (f.x < -160 || f.x > W + 160 || f.y < -160 || f.y > H + 160) { fish.splice(i, 1); continue; }
+    if (f.x < vx - 160 || f.x > vx + viewW + 160 || f.y < vy - 160 || f.y > vy + viewH + 160) { fish.splice(i, 1); continue; }
     if (state.screen === 'playing' && whale.magnetT > 0 && !f.pred && f.r < whale.r * 0.88) {
       const mx = whale.x - f.x, my = whale.y - f.y, md = Math.hypot(mx, my);
-      if (md < 320 && md > 1) { f.x += mx / md * 220 * dt; f.y += my / md * 220 * dt; }
+      const range = 320 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
+      if (md < range && md > 1) { f.x += mx / md * spd * dt; f.y += my / md * spd * dt; }
     }
     if (state.screen === 'playing' && !f.harmless && whale.inv <= 0) {
       const dx = whale.x - f.x, dy = whale.y - f.y;
@@ -253,7 +265,7 @@ function eatFish(i) {
   if (f.star) { whale.powerT = 5 + upgEffect('power'); sfx.power(); }
   if (f.magnet) { whale.magnetT = 5 + upgEffect('power'); sfx.power(); }
   if (f.gem && state.lives < 3 + upgEffect('lives')) state.lives++;
-  whale.r = Math.min(90, whale.r + (f.golden || f.gem || f.star || f.magnet ? 3 : f.r * 0.10 * (1 + upgEffect('grow') / 100) * (1 - whale.r / 150)));
+  whale.r = whale.r + (f.golden || f.gem || f.star || f.magnet ? 3 : f.r * 0.10 * (1 + upgEffect('grow') / 100) * (1 / (1 + whale.r / 500)));
   whale.eatT = 0.3;
   if (f.golden) sfx.gold(); else if (f.gem) sfx.heal(); else if (!f.star && !f.magnet) sfx.eat();
   addParts(f.x, f.y, f.golden ? '#ffd166' : (f.gem ? '#6ee86a' : (f.star ? '#ffe66d' : (f.magnet ? '#ff6b9d' : f.c1))), f.golden ? 18 : (f.gem ? 16 : (f.star || f.magnet ? 20 : 8)), 150, 0.6);
@@ -287,7 +299,7 @@ function updateWhale(dt) {
       whale.vx = lerp(whale.vx, ax / len * K, Math.min(1, dt * 6));
       whale.vy = lerp(whale.vy, ay / len * K, Math.min(1, dt * 6));
     } else if (performance.now() - mouse.lastMove < 4000) {
-      const dx = mouse.x - whale.x, dy = mouse.y - whale.y, d = Math.hypot(dx, dy);
+      const dx = mouse.x - W / 2, dy = mouse.y - H / 2, d = Math.hypot(dx, dy);
       if (d > 6) { whale.vx = lerp(whale.vx, dx / d * K, Math.min(1, dt * 5)); whale.vy = lerp(whale.vy, dy / d * K, Math.min(1, dt * 5)); }
       else { const fr = Math.pow(0.02, dt); whale.vx *= fr; whale.vy *= fr; }
     } else {
@@ -299,8 +311,6 @@ function updateWhale(dt) {
     whale.y = H * 0.56 + Math.sin(t * 0.7) * 44;
     whale.vx = Math.cos(t * 0.4) * W * 0.05; whale.vy = Math.cos(t * 0.7) * 30;
   }
-  whale.x = clamp(whale.x, whale.r, W - whale.r);
-  whale.y = clamp(whale.y, whale.r + 8, H - whale.r);
   if (Math.abs(whale.vx) > 10) whale.facing = whale.vx > 0 ? 1 : -1;
   whale.wobble += dt * 4;
   whale.eatT = Math.max(0, whale.eatT - dt);
@@ -339,10 +349,50 @@ function updatePlay(dt) {
   magnetCd -= dt;
   if (magnetCd <= 0) { magnetCd = rand(16, 24); if (whale.magnetT <= 0) spawnMagnet(); }
   rushCd -= dt;
-  if (rushCd <= 0) { rushCd = rand(25, 40); rushActive = 3.0; rushSpawnT = 0; sfx.rush(); addText(W / 2, H * 0.3, '金鱼潮来袭！', '#ffd166', 26); }
+  if (rushCd <= 0) { rushCd = rand(25, 40); rushActive = 3.0; rushSpawnT = 0; sfx.rush(); addText(whale.x, whale.y - viewH * 0.25, '金鱼潮来袭！', '#ffd166', 26); }
   if (rushActive > 0) {
     rushActive -= dt; rushSpawnT -= dt;
     if (rushSpawnT <= 0) { spawnGolden(); rushSpawnT = 0.35; }
+  }
+  hookCd -= dt;
+  if (hookCd <= 0) { hookCd = rand(18, 28); if (whale.r >= 100 && !hook) spawnHook(); }
+}
+function spawnHook() {
+  hook = {
+    x: whale.x + rand(-0.3, 0.3) * viewW,
+    y: vy,
+    targetY: whale.y + rand(-0.1, 0.1) * viewH,
+    phase: 'warn',
+    t: 1.5
+  };
+  sfx.hook();
+}
+function updateHook(dt) {
+  if (!hook) return;
+  hook.t -= dt;
+  if (hook.phase === 'warn') {
+    if (hook.t <= 0) { hook.phase = 'drop'; hook.y = vy; }
+  } else if (hook.phase === 'drop') {
+    hook.y += viewH * 1.6 * dt;
+    if (hook.y >= hook.targetY) { hook.y = hook.targetY; hook.phase = 'stay'; hook.t = 1.2; }
+  } else if (hook.phase === 'stay') {
+    hook.y = hook.targetY + Math.sin(performance.now() / 150) * 6;
+    if (hook.t <= 0) { hook.phase = 'reel'; hook.t = 0.5; }
+  } else if (hook.phase === 'reel') {
+    hook.y = hook.targetY + Math.sin(performance.now() / 150) * 6;
+    if (hook.t <= 0) hook.phase = 'pull';
+  } else if (hook.phase === 'pull') {
+    hook.y -= viewH * 2.8 * dt;
+    if (hook.y <= vy) hook = null;
+  }
+  if (hook && hook.phase !== 'warn') {
+    const dx = whale.x - hook.x, dy = whale.y - hook.y, d = Math.hypot(dx, dy);
+    if (d < whale.r * 0.7 + 12) {
+      state.lives--; shake = 0.6; whale.inv = 2.2; sfx.hurt();
+      addParts(hook.x, hook.y, '#ff5e5e', 14, 190, 0.5);
+      hook = null;
+      if (state.lives <= 0) gameOver();
+    }
   }
 }
 
@@ -554,6 +604,43 @@ function drawWhaleC() {
     ctx.textAlign = 'left';
   }
 }
+function drawHook() {
+  if (!hook || hook.phase === 'warn') return;
+  if (hook.phase === 'reel' && Math.floor(performance.now() / 120) % 2 === 0) return;
+  const hx = hook.x, hy = hook.y;
+  const lw = 3 / zoom, r = 14 / zoom;
+  ctx.strokeStyle = '#cfd6e4';
+  ctx.lineWidth = lw;
+  ctx.beginPath();
+  ctx.moveTo(hx, vy);
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+  ctx.strokeStyle = '#e8eef6';
+  ctx.lineWidth = lw * 1.3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(hx - r, hy, r, 0, Math.PI, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(hx - r, hy);
+  ctx.lineTo(hx - r, hy - r * 1.2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(hx - r, hy - r * 0.7);
+  ctx.lineTo(hx - r * 0.55, hy - r);
+  ctx.stroke();
+}
+function drawHookWarn() {
+  if (!hook || hook.phase !== 'warn') return;
+  const a = 0.5 + 0.5 * Math.sin(performance.now() / 100);
+  ctx.fillStyle = 'rgba(255,40,40,' + (0.3 * a) + ')';
+  ctx.fillRect(0, 0, W, 8);
+  ctx.fillStyle = 'rgba(255,90,90,' + (0.55 + 0.45 * a) + ')';
+  ctx.font = 'bold 22px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('鱼钩来袭！', W / 2, 50);
+  ctx.textAlign = 'left';
+}
 function updateDanger() {
   let minD = 1e9;
   for (const f of fish) {
@@ -575,14 +662,20 @@ function drawVignette() {
 }
 function render() {
   ctx.clearRect(0, 0, W, H);
-  ctx.save();
-  if (shake > 0) ctx.translate(rand(-1, 1) * shake * 9, rand(-1, 1) * shake * 9);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawBg(); drawSeaweed(); drawBubbles();
+  ctx.save();
+  const sx = shake > 0 ? rand(-1, 1) * shake * 9 : 0;
+  const sy = shake > 0 ? rand(-1, 1) * shake * 9 : 0;
+  ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * (W / 2 - whale.x * zoom + sx), dpr * (H / 2 - whale.y * zoom + sy));
   drawFishAll();
   drawParticles();
   drawWhaleC();
+  drawHook();
   ctx.restore();
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   drawVignette();
+  drawHookWarn();
 }
 
 /* ================= HUD ================= */
@@ -670,15 +763,18 @@ function renderUpgrade() {
   for (const u of UPGRADES) {
     const lv = upg[u.id] || 0;
     const price = upgPrice(u.id);
+    const maxed = price === null;
     const card = document.createElement('div');
     card.className = 'upg-card';
     const nm = document.createElement('div'); nm.className = 'nm'; nm.textContent = u.name;
-    const lvEl = document.createElement('div'); lvEl.className = 'lv'; lvEl.textContent = 'Lv.' + lv;
-    const efEl = document.createElement('div'); efEl.className = 'ef'; efEl.textContent = u.fmt(u.inc * lv) + ' → ' + u.fmt(u.inc * (lv + 1));
+    const lvEl = document.createElement('div'); lvEl.className = 'lv'; lvEl.textContent = maxed ? 'Lv.' + lv + ' / MAX' : 'Lv.' + lv;
+    const efEl = document.createElement('div'); efEl.className = 'ef';
+    efEl.textContent = maxed ? u.fmt(u.inc * lv) : (u.fmt(u.inc * lv) + ' → ' + u.fmt(u.inc * (lv + 1)));
     const desc = document.createElement('div'); desc.className = 'desc'; desc.textContent = u.desc;
-    const btn = document.createElement('button'); btn.className = 'upg-btn'; btn.textContent = price + ' 金币';
-    btn.disabled = gold < price;
-    btn.addEventListener('click', () => { if (gold >= price) { gold -= price; upg[u.id] = lv + 1; saveUpg(); renderUpgrade(); } });
+    const btn = document.createElement('button'); btn.className = 'upg-btn';
+    btn.textContent = maxed ? '已满级' : (price + ' 金币');
+    btn.disabled = maxed || gold < price;
+    btn.addEventListener('click', () => { if (!maxed && gold >= price) { gold -= price; upg[u.id] = lv + 1; saveUpg(); renderUpgrade(); } });
     card.appendChild(nm); card.appendChild(lvEl); card.appendChild(efEl); card.appendChild(desc); card.appendChild(btn);
     upgList.appendChild(card);
   }
@@ -687,14 +783,16 @@ function startGame() {
   initAudio(); sfx.start();
   state.screen = 'playing'; state.score = 0; state.lives = 3 + upgEffect('lives'); state.time = 0;
   whale.x = W / 2; whale.y = H * 0.6; whale.vx = 0; whale.vy = 0;
-  whale.r = Math.min(90, 26 + upgEffect('size')); whale.inv = 0; whale.eatT = 0; whale.facing = 1; whale.powerT = 0; whale.magnetT = 0;
+  whale.r = 26 + upgEffect('size'); whale.inv = 0; whale.eatT = 0; whale.facing = 1; whale.powerT = 0; whale.magnetT = 0;
+  updateCamera();
   fish = []; parts = []; quote = null; quoteT = 6;
   spawnT = 0.8; goldT = 12; gemT = 8; shake = 0;
   starCd = 20; magnetCd = 18; rushCd = 30; rushActive = 0; rushSpawnT = 0;
   combo = 0; comboT = 0; maxCombo = 0; danger = 0;
+  hook = null; hookCd = 20;
   mouse.lastMove = -1e9;
   showOverlay(menuEl, false); showOverlay(overEl, false); showOverlay(pauseEl, false); showOverlay(rulesEl, false); showOverlay(upgradeEl, false);
-  hintEl.textContent = '移动鼠标 控制小蓝鲸 · P 暂停 · M 静音';
+  hintEl.textContent = '鼠标 / WASD 控制方向 · P 暂停 · M 静音';
 }
 function gameOver() {
   state.screen = 'gameover';
@@ -721,9 +819,10 @@ function toggleMute() {
 }
 function goMenu() {
   state.screen = 'menu'; state.score = 0; state.lives = 3 + upgEffect('lives');
-  whale.r = Math.min(90, 26 + upgEffect('size')); whale.inv = 0; whale.eatT = 0; whale.powerT = 0; whale.magnetT = 0;
+  whale.r = 26 + upgEffect('size'); whale.inv = 0; whale.eatT = 0; whale.powerT = 0; whale.magnetT = 0;
   fish = []; parts = []; quote = null; shake = 0;
   combo = 0; comboT = 0; maxCombo = 0; danger = 0;
+  hook = null;
   showOverlay(menuEl, true); showOverlay(overEl, false); showOverlay(pauseEl, false); showOverlay(rulesEl, false); showOverlay(upgradeEl, false);
   goldVal.textContent = gold;
   hintEl.textContent = '吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
@@ -772,18 +871,19 @@ window.addEventListener('blur', () => { if (state.screen === 'playing') togglePa
 /* ================= 主循环 ================= */
 resize();
 whale.x = W / 2; whale.y = H * 0.56;
-whale.r = Math.min(90, 26 + upgEffect('size'));
+whale.r = 26 + upgEffect('size');
 muteBtn.textContent = muted ? '🔇' : '🔊';
 goldVal.textContent = gold;
 let lastT = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.033, (now - lastT) / 1000); lastT = now;
-  if (state.screen === 'playing') updatePlay(dt);
+  if (state.screen === 'playing') { updatePlay(dt); updateHook(dt); }
   updateDecor(dt);
   updateFish(dt);
   updateDanger();
   updateWhale(dt);
+  updateCamera();
   updateParticles(dt);
   if (shake > 0) shake = Math.max(0, shake - dt);
   render();
