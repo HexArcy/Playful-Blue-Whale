@@ -64,6 +64,24 @@
     border-radius:14px; padding:18px 22px; font-size:15px; line-height:1.9; color:#eaf4ff; }
   .rules-box b { color:#ffe66d; }
   .rules-box .rule { margin-bottom:6px; }
+  .gold-line { font-size:20px; color:#ffe66d; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .gold-line b { font-size:26px; }
+  #upgList { display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+    max-width:720px; width:92%; max-height:50vh; overflow-y:auto; padding:2px; }
+  .upg-card { width:calc(33.33% - 8px); min-width:168px; background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.2); border-radius:12px; padding:12px; text-align:left;
+    display:flex; flex-direction:column; }
+  .upg-card .nm { font-size:16px; font-weight:700; color:#eaf4ff; }
+  .upg-card .lv { font-size:12px; color:rgba(255,255,255,.55); margin:2px 0 6px; }
+  .upg-card .ef { font-size:14px; color:#ffe66d; margin-bottom:4px; }
+  .upg-card .desc { font-size:12px; color:rgba(255,255,255,.6); margin-bottom:10px; flex:1; }
+  .upg-btn { width:100%; padding:8px 0; font-size:14px; font-weight:700; border-radius:20px;
+    border:1px solid rgba(255,255,255,.3); cursor:pointer; color:#5a3a00;
+    background:linear-gradient(180deg,#f0b429,#d98a1c); }
+  .upg-btn:disabled { background:rgba(255,255,255,.12); color:rgba(255,255,255,.4);
+    cursor:not-allowed; border-color:rgba(255,255,255,.15); }
+  .upg-btn:not(:disabled):hover { filter:brightness(1.12); }
+  .upg-btn:not(:disabled):active { filter:brightness(0.95); }
   h1.big { font-size:clamp(40px,8vw,80px); letter-spacing:4px; text-shadow:0 4px 16px rgba(0,0,0,.5); }
   .scoreLine { font-size:22px; color:#eaf4ff; }
   .scoreLine b { font-size:34px; color:#ffe66d; }
@@ -90,6 +108,8 @@
   <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
   <div class="btn" id="startBtn">开 始 游 戏</div>
   <div class="btn btn-ghost" id="rulesBtn">查 看 规 则</div>
+  <div class="btn btn-ghost" id="upgradeBtn">养 成</div>
+  <div class="gold-line">金币 <b id="goldVal">0</b></div>
   <div class="tip">鼠标 / WASD 控制 · 空格开始 · P 暂停 · M 静音</div>
 </div>
 <div id="over" class="overlay hidden">
@@ -97,6 +117,7 @@
   <div class="scoreLine">得分 <b id="finalScore">0</b></div>
   <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
   <div class="scoreLine">最高连击 <b id="finalCombo">x0</b></div>
+  <div class="scoreLine">本局金币 <b id="finalGold">+0</b></div>
   <div id="record" class="record hidden">🏆 新纪录！</div>
   <div class="btn" id="againBtn">再 玩 一 次</div>
   <div class="btn btn-ghost" id="overHomeBtn">返回主页</div>
@@ -125,6 +146,12 @@
   </div>
   <div class="btn" id="rulesBackBtn">返 回</div>
 </div>
+<div id="upgrade" class="overlay hidden">
+  <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">养 成</h1>
+  <div class="gold-line">金币 <b id="upgGold">0</b></div>
+  <div id="upgList"></div>
+  <div class="btn" id="upgradeBackBtn">返 回</div>
+</div>
 <script>
 'use strict';
 /* ================= 工具 ================= */
@@ -137,6 +164,23 @@ const store={
   set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 };
 function comboMult(c){ return c>=20?3:c>=12?2.5:c>=7?2:c>=3?1.5:1; }
+
+/* ================= 养成 ================= */
+const UPGRADES=[
+  {id:'lives', name:'生命上限', desc:'每局开局生命', inc:1,  base:150, fmt:v=>'+'+v+' 命'},
+  {id:'size',  name:'初始体型', desc:'开局鲸鱼更大', inc:4,  base:100, fmt:v=>'+'+v},
+  {id:'grow',  name:'成长速度', desc:'吃鱼体型增幅', inc:12, base:100, fmt:v=>'+'+v+'%'},
+  {id:'speed', name:'移动速度', desc:'游动速度',     inc:8,  base:100, fmt:v=>'+'+v+'%'},
+  {id:'combo', name:'连击窗口', desc:'断连倒计时',   inc:0.4,base:80,  fmt:v=>'+'+(Math.round(v*10)/10)+'s'},
+  {id:'power', name:'道具时长', desc:'星星/磁铁持续', inc:1,  base:100, fmt:v=>'+'+v+'s'},
+  {id:'score', name:'得分加成', desc:'全局分数',     inc:10, base:150, fmt:v=>'+'+v+'%'},
+];
+function loadUpg(){ try{ return JSON.parse(store.get('twlj_upg','{}'))||{}; }catch(e){ return {}; } }
+let gold=parseInt(store.get('twlj_gold','0'),10)||0;
+let upg=loadUpg();
+function upgEffect(id){ const u=UPGRADES.find(x=>x.id===id); return u.inc*(upg[id]||0); }
+function upgPrice(id){ const u=UPGRADES.find(x=>x.id===id); return Math.round(u.base*Math.pow(1.6, upg[id]||0)); }
+function saveUpg(){ store.set('twlj_upg',JSON.stringify(upg)); store.set('twlj_gold',String(gold)); }
 
 /* ================= 画布 ================= */
 const canvas=document.getElementById('game');
@@ -344,21 +388,21 @@ function updateFish(dt){
 }
 function eatFish(i){
   const f=fish[i];
-  combo++; comboT=2.0; maxCombo=Math.max(maxCombo,combo);
+  combo++; comboT=2+upgEffect('combo'); maxCombo=Math.max(maxCombo,combo);
   const mult=comboMult(combo);
   let pts=f.golden?200:(f.gem?100:(f.star||f.magnet?0:Math.round(f.r)*3));
-  if(pts>0) pts=Math.round(pts*mult);
+  if(pts>0) pts=Math.round(pts*mult*(1+upgEffect('score')/100));
   state.score+=pts;
-  if(f.star){ whale.powerT=5; sfx.power(); }
-  if(f.magnet){ whale.magnetT=5; sfx.power(); }
-  if(f.gem && state.lives<3) state.lives++;
-  whale.r=Math.min(90,whale.r+(f.golden||f.gem||f.star||f.magnet?3:f.r*0.10*(1-whale.r/150)));
+  if(f.star){ whale.powerT=5+upgEffect('power'); sfx.power(); }
+  if(f.magnet){ whale.magnetT=5+upgEffect('power'); sfx.power(); }
+  if(f.gem && state.lives<3+upgEffect('lives')) state.lives++;
+  whale.r=Math.min(90,whale.r+(f.golden||f.gem||f.star||f.magnet?3:f.r*0.10*(1+upgEffect('grow')/100)*(1-whale.r/150)));
   whale.eatT=0.3;
   if(f.golden) sfx.gold(); else if(f.gem) sfx.heal(); else if(!f.star&&!f.magnet) sfx.eat();
   addParts(f.x,f.y, f.golden?'#ffd166':(f.gem?'#6ee86a':(f.star?'#ffe66d':(f.magnet?'#ff6b9d':f.c1))), f.golden?18:(f.gem?16:(f.star||f.magnet?20:8)), 150, 0.6);
   if(f.gem) addText(f.x,f.y-10,'+1 ❤','#6ee86a');
-  else if(f.star) addText(f.x,f.y-10,'无敌 5s!','#ffe66d');
-  else if(f.magnet) addText(f.x,f.y-10,'磁铁 5s!','#ff6b9d');
+  else if(f.star) addText(f.x,f.y-10,'无敌 '+(5+upgEffect('power'))+'s!','#ffe66d');
+  else if(f.magnet) addText(f.x,f.y-10,'磁铁 '+(5+upgEffect('power'))+'s!','#ff6b9d');
   else { const sz=combo>=12?22:(combo>=3?19:15); addText(f.x,f.y-10,'+'+pts,(combo>=3?'#ff9d00':'#ffe66d'),sz); }
   fish.splice(i,1);
 }
@@ -380,7 +424,7 @@ function updateWhale(dt){
     if(keys['ArrowUp']||keys['w']||keys['W'])ay-=1;
     if(keys['ArrowDown']||keys['s']||keys['S'])ay+=1;
     const useKeys=ax!==0||ay!==0;
-    const K=430;
+    const K=430*(1+upgEffect('speed')/100);
     if(useKeys){
       const len=Math.hypot(ax,ay)||1;
       whale.vx=lerp(whale.vx,ax/len*K,Math.min(1,dt*6));
@@ -690,19 +734,28 @@ const hintEl=document.getElementById('hint');
 const comboEl=document.getElementById('combo');
 const powerEl=document.getElementById('power');
 const heartsSpans=[];
-for(let i=0;i<3;i++){
-  const s=document.createElement('span');
-  s.textContent='♥';
-  heartsEl.appendChild(s);
-  heartsSpans.push(s);
+let heartsMax=0;
+function ensureHearts(max){
+  if(max===heartsMax) return;
+  heartsEl.innerHTML='';
+  heartsSpans.length=0;
+  for(let i=0;i<max;i++){
+    const s=document.createElement('span');
+    s.textContent='♥';
+    heartsEl.appendChild(s);
+    heartsSpans.push(s);
+  }
+  heartsMax=max;
 }
 let hudScore=-1,hudHigh=-1,hudLives=-1,hudCombo=-1,hudPower='';
 function updateHUD(){
   if(state.score!==hudScore){ hudScore=state.score; scoreVal.textContent=state.score; }
   if(state.high!==hudHigh){ hudHigh=state.high; highVal.textContent=state.high; }
-  if(state.lives!==hudLives){
+  const maxLives=3+upgEffect('lives');
+  if(maxLives!==heartsMax || state.lives!==hudLives){
+    ensureHearts(maxLives);
     hudLives=state.lives;
-    for(let i=0;i<3;i++) heartsSpans[i].className=i<state.lives?'on':'off';
+    for(let i=0;i<heartsSpans.length;i++) heartsSpans[i].className=i<state.lives?'on':'off';
   }
   if(combo!==hudCombo){
     hudCombo=combo;
@@ -727,6 +780,7 @@ const pauseEl=document.getElementById('pause');
 const finalScore=document.getElementById('finalScore');
 const finalHigh=document.getElementById('finalHigh');
 const finalCombo=document.getElementById('finalCombo');
+const finalGold=document.getElementById('finalGold');
 const recordEl=document.getElementById('record');
 const startBtn=document.getElementById('startBtn');
 const againBtn=document.getElementById('againBtn');
@@ -737,29 +791,58 @@ const overHomeBtn=document.getElementById('overHomeBtn');
 const rulesEl=document.getElementById('rules');
 const rulesBtn=document.getElementById('rulesBtn');
 const rulesBackBtn=document.getElementById('rulesBackBtn');
+const upgradeEl=document.getElementById('upgrade');
+const upgradeBtn=document.getElementById('upgradeBtn');
+const upgradeBackBtn=document.getElementById('upgradeBackBtn');
+const upgList=document.getElementById('upgList');
+const upgGold=document.getElementById('upgGold');
+const goldVal=document.getElementById('goldVal');
 
 function showOverlay(el,show){ el.classList.toggle('hidden',!show); }
+function renderUpgrade(){
+  upgGold.textContent=gold;
+  goldVal.textContent=gold;
+  upgList.innerHTML='';
+  for(const u of UPGRADES){
+    const lv=upg[u.id]||0;
+    const price=upgPrice(u.id);
+    const card=document.createElement('div');
+    card.className='upg-card';
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=u.name;
+    const lvEl=document.createElement('div'); lvEl.className='lv'; lvEl.textContent='Lv.'+lv;
+    const efEl=document.createElement('div'); efEl.className='ef'; efEl.textContent=u.fmt(u.inc*lv)+' → '+u.fmt(u.inc*(lv+1));
+    const desc=document.createElement('div'); desc.className='desc'; desc.textContent=u.desc;
+    const btn=document.createElement('button'); btn.className='upg-btn'; btn.textContent=price+' 金币';
+    btn.disabled=gold<price;
+    btn.addEventListener('click',()=>{ if(gold>=price){ gold-=price; upg[u.id]=lv+1; saveUpg(); renderUpgrade(); } });
+    card.appendChild(nm); card.appendChild(lvEl); card.appendChild(efEl); card.appendChild(desc); card.appendChild(btn);
+    upgList.appendChild(card);
+  }
+}
 function startGame(){
   initAudio(); sfx.start();
-  state.screen='playing'; state.score=0; state.lives=3; state.time=0;
+  state.screen='playing'; state.score=0; state.lives=3+upgEffect('lives'); state.time=0;
   whale.x=W/2; whale.y=H*0.6; whale.vx=0; whale.vy=0;
-  whale.r=26; whale.inv=0; whale.eatT=0; whale.facing=1; whale.powerT=0; whale.magnetT=0;
+  whale.r=Math.min(90,26+upgEffect('size')); whale.inv=0; whale.eatT=0; whale.facing=1; whale.powerT=0; whale.magnetT=0;
   fish=[]; parts=[]; quote=null; quoteT=6;
   spawnT=0.8; goldT=12; gemT=8; shake=0;
   starCd=20; magnetCd=18; rushCd=30; rushActive=0; rushSpawnT=0;
   combo=0; comboT=0; maxCombo=0; danger=0;
   mouse.lastMove=-1e9;
-  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false);
+  showOverlay(menuEl,false); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false); showOverlay(upgradeEl,false);
   hintEl.textContent='移动鼠标 控制小蓝鲸 · P 暂停 · M 静音';
 }
 function gameOver(){
   state.screen='gameover';
   sfx.die();
+  const earned=Math.floor(state.score/20);
+  gold+=earned; saveUpg();
   const isRecord=state.score>state.high;
   if(isRecord){ state.high=state.score; store.set('twlj_high',String(state.high)); }
   finalScore.textContent=state.score;
   finalHigh.textContent=state.high;
   finalCombo.textContent='x'+maxCombo;
+  finalGold.textContent='+'+earned;
   recordEl.classList.toggle('hidden',!isRecord);
   showOverlay(overEl,true);
   hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
@@ -773,11 +856,12 @@ function toggleMute(){
   muteBtn.textContent=muted?'🔇':'🔊';
 }
 function goMenu(){
-  state.screen='menu'; state.score=0; state.lives=3;
-  whale.r=26; whale.inv=0; whale.eatT=0; whale.powerT=0; whale.magnetT=0;
+  state.screen='menu'; state.score=0; state.lives=3+upgEffect('lives');
+  whale.r=Math.min(90,26+upgEffect('size')); whale.inv=0; whale.eatT=0; whale.powerT=0; whale.magnetT=0;
   fish=[]; parts=[]; quote=null; shake=0;
   combo=0; comboT=0; maxCombo=0; danger=0;
-  showOverlay(menuEl,true); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false);
+  showOverlay(menuEl,true); showOverlay(overEl,false); showOverlay(pauseEl,false); showOverlay(rulesEl,false); showOverlay(upgradeEl,false);
+  goldVal.textContent=gold;
   hintEl.textContent='吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼';
 }
 
@@ -802,6 +886,7 @@ window.addEventListener('keydown',e=>{
   }
   if(e.key==='p'||e.key==='P'||e.key==='Escape'){
     if(e.key==='Escape' && !rulesEl.classList.contains('hidden')){ showOverlay(rulesEl,false); }
+    else if(e.key==='Escape' && !upgradeEl.classList.contains('hidden')){ showOverlay(upgradeEl,false); }
     else if(state.screen==='playing'||state.screen==='paused') togglePause();
   }
   if(e.key==='m'||e.key==='M') toggleMute();
@@ -816,12 +901,16 @@ pauseHomeBtn.addEventListener('click',()=>{ goMenu(); pauseHomeBtn.blur(); });
 overHomeBtn.addEventListener('click',()=>{ goMenu(); overHomeBtn.blur(); });
 rulesBtn.addEventListener('click',()=>{ initAudio(); showOverlay(rulesEl,true); rulesBtn.blur(); });
 rulesBackBtn.addEventListener('click',()=>{ showOverlay(rulesEl,false); rulesBackBtn.blur(); });
+upgradeBtn.addEventListener('click',()=>{ initAudio(); renderUpgrade(); showOverlay(upgradeEl,true); upgradeBtn.blur(); });
+upgradeBackBtn.addEventListener('click',()=>{ showOverlay(upgradeEl,false); upgradeBackBtn.blur(); });
 window.addEventListener('blur',()=>{ if(state.screen==='playing') togglePause(); });
 
 /* ================= 主循环 ================= */
 resize();
 whale.x=W/2; whale.y=H*0.56;
+whale.r=Math.min(90,26+upgEffect('size'));
 muteBtn.textContent=muted?'🔇':'🔊';
+goldVal.textContent=gold;
 let lastT=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
