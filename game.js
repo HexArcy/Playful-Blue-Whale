@@ -320,24 +320,24 @@ function updateWhale(dt) {
   }
   if (Math.abs(whale.vx) > 10) whale.facing = whale.vx > 0 ? 1 : -1;
   whale.wobble += dt * 4;
-  whale.eatT = Math.max(0, whale.eatT - dt);
-  if (whale.inv > 0) whale.inv -= dt;
-  if (whale.powerT > 0) whale.powerT -= dt;
-  if (whale.magnetT > 0) whale.magnetT -= dt;
-  trailT -= dt;
-  if (trailT <= 0) {
-    trailT = 0.16;
-    parts.push({
-      x: whale.x - whale.facing * whale.r * 0.9, y: whale.y + rand(-4, 6),
-      vx: -whale.facing * rand(6, 16), vy: rand(-26, -10), life: rand(0.5, 0.9), max: 0.9,
-      r: rand(2, 4.5), color: 'rgba(255,255,255,0.7)', bub: true
-    });
-  }
   if (state.screen === 'playing') {
+    whale.eatT = Math.max(0, whale.eatT - dt);
+    if (whale.inv > 0) whale.inv -= dt;
+    if (whale.powerT > 0) whale.powerT -= dt;
+    if (whale.magnetT > 0) whale.magnetT -= dt;
+    trailT -= dt;
+    if (trailT <= 0) {
+      trailT = 0.16;
+      parts.push({
+        x: whale.x - whale.facing * whale.r * 0.9, y: whale.y + rand(-4, 6),
+        vx: -whale.facing * rand(6, 16), vy: rand(-26, -10), life: rand(0.5, 0.9), max: 0.9,
+        r: rand(2, 4.5), color: 'rgba(255,255,255,0.7)', bub: true
+      });
+    }
     quoteT -= dt;
     if (quoteT <= 0) { quote = { text: QUOTES[randInt(0, QUOTES.length - 1)], t: 4 }; quoteT = rand(16, 28); }
+    if (quote) { quote.t -= dt; if (quote.t <= 0) quote = null; }
   }
-  if (quote) { quote.t -= dt; if (quote.t <= 0) quote = null; }
 }
 function updatePlay(dt) {
   state.time += dt;
