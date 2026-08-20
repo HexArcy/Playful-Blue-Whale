@@ -1,73 +1,76 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>贪玩蓝鲸</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>贪玩蓝鲸</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-<canvas id="game"></canvas>
-<div id="hud">
-  <div class="hud-top">
-    <div>分数 <b id="scoreVal">0</b></div>
-    <div id="hearts"></div>
-    <div>最高 <b id="highVal">0</b></div>
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div class="hud-top">
+      <div>分数 <b id="scoreVal">0</b></div>
+      <div id="hearts"></div>
+      <div>最高 <b id="highVal">0</b></div>
+    </div>
+    <div id="combo"></div>
+    <div id="power"></div>
+    <div id="hint">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
   </div>
-  <div id="combo"></div>
-  <div id="power"></div>
-  <div id="hint">吃小鱼长大 · 金鱼大补 · 绿宝石回血 · 别碰大鱼</div>
-</div>
-<button id="muteBtn" title="静音 (M)">🔊</button>
-<div id="menu" class="overlay">
-  <div class="title">贪玩蓝鲸</div>
-  <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
-  <div class="btn" id="startBtn">开 始 游 戏</div>
-  <div class="btn btn-ghost" id="rulesBtn">查 看 规 则</div>
-  <div class="btn btn-ghost" id="upgradeBtn">养 成</div>
-  <div class="gold-line">金币 <b id="goldVal">0</b></div>
-  <div class="tip">鼠标 / WASD 控制 · 空格开始 · P 暂停 · M 静音</div>
-</div>
-<div id="over" class="overlay hidden">
-  <h1 class="big">游戏结束</h1>
-  <div class="scoreLine">得分 <b id="finalScore">0</b></div>
-  <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
-  <div class="scoreLine">最高连击 <b id="finalCombo">x0</b></div>
-  <div class="scoreLine">本局金币 <b id="finalGold">+0</b></div>
-  <div id="record" class="record hidden">🏆 新纪录！</div>
-  <div class="btn" id="againBtn">再 玩 一 次</div>
-  <div class="btn btn-ghost" id="overHomeBtn">返回主页</div>
-  <div class="tip">是兄弟就回来继续玩（按空格也行）</div>
-</div>
-<div id="pause" class="overlay hidden">
-  <h1>暂 停</h1>
-  <div class="btn" id="pauseResumeBtn">继 续 游 戏</div>
-  <div class="btn btn-ghost" id="pauseHomeBtn">返回主页</div>
-  <div class="tip">P / Esc 继续 · M 静音</div>
-</div>
-<div id="rules" class="overlay hidden">
-  <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">游戏规则</h1>
-  <div class="rules-box">
-    <div class="rule"><b>操作</b>：鼠标移动 / WASD 或方向键 · 空格开始 · P/Esc 暂停 · M 静音</div>
-    <div class="rule"><b>目标</b>：吃小鱼长大，别被大鱼吃掉</div>
-    <div class="rule"><b>小鱼</b>：吃掉加分并长大（体型有上限）</div>
-    <div class="rule"><b>金鱼</b>（金色）：+200 分，长得更多</div>
-    <div class="rule"><b>绿宝石鱼</b>（绿色）：+100 分，回 1 点生命</div>
-    <div class="rule"><b>大鱼</b>（灰色）：体型比你大，碰到扣 1 命并被击退</div>
-    <div class="rule"><b>连击</b>：2 秒内连续吃鱼叠加倍率 x1 → x1.5 → x2 → x2.5 → x3，断连归零</div>
-    <div class="rule"><b>星星</b>（金色星形）：5 秒无敌，期间可撞吃大鱼</div>
-    <div class="rule"><b>磁铁</b>（粉色）：5 秒自动吸附附近小鱼</div>
-    <div class="rule"><b>金鱼潮</b>：随机触发，大量金鱼来袭</div>
-    <div class="rule"><b>生命</b>：共 3 条命，归零游戏结束</div>
+  <button id="muteBtn" title="静音 (M)">🔊</button>
+  <div id="menu" class="overlay">
+    <div class="title">贪玩蓝鲸</div>
+    <div class="sub">大渣好，我系渣渣鲸！是兄弟就来喂我！</div>
+    <div class="btn" id="startBtn">开 始 游 戏</div>
+    <div class="btn btn-ghost" id="rulesBtn">查 看 规 则</div>
+    <div class="btn btn-ghost" id="upgradeBtn">养 成</div>
+    <div class="gold-line">金币 <b id="goldVal">0</b></div>
+    <div class="tip">鼠标 / WASD 控制 · 空格开始 · P 暂停 · M 静音</div>
   </div>
-  <div class="btn" id="rulesBackBtn">返 回</div>
-</div>
-<div id="upgrade" class="overlay hidden">
-  <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">养 成</h1>
-  <div class="gold-line">金币 <b id="upgGold">0</b></div>
-  <div id="upgList"></div>
-  <div class="btn" id="upgradeBackBtn">返 回</div>
-</div>
-<script src="game.js"></script>
+  <div id="over" class="overlay hidden">
+    <h1 class="big">游戏结束</h1>
+    <div class="scoreLine">得分 <b id="finalScore">0</b></div>
+    <div class="scoreLine">最高 <b id="finalHigh">0</b></div>
+    <div class="scoreLine">最高连击 <b id="finalCombo">x0</b></div>
+    <div class="scoreLine">本局金币 <b id="finalGold">+0</b></div>
+    <div id="record" class="record hidden">🏆 新纪录！</div>
+    <div class="btn" id="againBtn">再 玩 一 次</div>
+    <div class="btn btn-ghost" id="overHomeBtn">返回主页</div>
+    <div class="tip">是兄弟就回来继续玩（按空格也行）</div>
+  </div>
+  <div id="pause" class="overlay hidden">
+    <h1>暂 停</h1>
+    <div class="btn" id="pauseResumeBtn">继 续 游 戏</div>
+    <div class="btn btn-ghost" id="pauseHomeBtn">返回主页</div>
+    <div class="tip">P / Esc 继续 · M 静音</div>
+  </div>
+  <div id="rules" class="overlay hidden">
+    <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">游戏规则</h1>
+    <div class="rules-box">
+      <div class="rule"><b>操作</b>：鼠标移动 / WASD 或方向键 · 空格开始 · P/Esc 暂停 · M 静音</div>
+      <div class="rule"><b>目标</b>：吃小鱼长大，别被大鱼吃掉</div>
+      <div class="rule"><b>小鱼</b>：吃掉加分并长大（体型有上限）</div>
+      <div class="rule"><b>金鱼</b>（金色）：+200 分，长得更多</div>
+      <div class="rule"><b>绿宝石鱼</b>（绿色）：+100 分，回 1 点生命</div>
+      <div class="rule"><b>大鱼</b>（灰色）：体型比你大，碰到扣 1 命并被击退</div>
+      <div class="rule"><b>连击</b>：2 秒内连续吃鱼叠加倍率 x1 → x1.5 → x2 → x2.5 → x3，断连归零</div>
+      <div class="rule"><b>星星</b>（金色星形）：5 秒无敌，期间可撞吃大鱼</div>
+      <div class="rule"><b>磁铁</b>（粉色）：5 秒自动吸附附近小鱼</div>
+      <div class="rule"><b>金鱼潮</b>：随机触发，大量金鱼来袭</div>
+      <div class="rule"><b>生命</b>：共 3 条命，归零游戏结束</div>
+    </div>
+    <div class="btn" id="rulesBackBtn">返 回</div>
+  </div>
+  <div id="upgrade" class="overlay hidden">
+    <h1 class="big" style="font-size:clamp(26px,4.5vw,40px);">养 成</h1>
+    <div class="gold-line">金币 <b id="upgGold">0</b></div>
+    <div id="upgList"></div>
+    <div class="btn" id="upgradeBackBtn">返 回</div>
+  </div>
+  <script src="game.js"></script>
 </body>
+
 </html>
