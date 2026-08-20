@@ -45,8 +45,11 @@ function resize() {
   buildGrads();
   updateCamera();
 }
-function updateCamera() {
-  zoom = whale.r <= 90 ? 1 : 90 / whale.r;
+function updateCamera(dt) {
+  const target = whale.r <= 90 ? 1 : 90 / whale.r;
+  if (dt === undefined || dt === null) zoom = target;
+  else zoom = lerp(zoom, target, Math.min(1, dt * 4));
+  if (Math.abs(zoom - target) < 0.0005) zoom = target;
   viewW = W / zoom; viewH = H / zoom;
   vx = whale.x - viewW / 2; vy = whale.y - viewH / 2;
 }
@@ -200,6 +203,7 @@ function addParts(x, y, color, n, spd, life) {
     const a = rand(0, 6.283), s = rand(0.2, 1) * spd;
     parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rand(life * 0.5, life), max: life, r: rand(1.5, 4.5), color, bub: Math.random() < 0.3 });
   }
+  if (parts.length > 260) parts.splice(0, parts.length - 260);
 }
 function addText(x, y, text, color, size) { parts.push({ x, y, vx: 0, vy: -46, life: 0.9, max: 0.9, r: 0, color, text, size: size || 15 }); }
 function updateParticles(dt) {
@@ -750,6 +754,7 @@ const upgradeBackBtn = document.getElementById('upgradeBackBtn');
 const upgList = document.getElementById('upgList');
 const upgGold = document.getElementById('upgGold');
 const goldVal = document.getElementById('goldVal');
+const deleteSaveBtn = document.getElementById('deleteSaveBtn');
 
 function showOverlay(el, show) { el.classList.toggle('hidden', !show); }
 function setModalBack(hidden) {
@@ -866,6 +871,18 @@ rulesBtn.addEventListener('click', () => { initAudio(); showOverlay(menuEl, fals
 rulesBackBtn.addEventListener('click', () => { showOverlay(rulesEl, false); setModalBack(false); showOverlay(menuEl, true); rulesBackBtn.blur(); });
 upgradeBtn.addEventListener('click', () => { initAudio(); renderUpgrade(); showOverlay(menuEl, false); setModalBack(true); showOverlay(upgradeEl, true); upgradeBtn.blur(); });
 upgradeBackBtn.addEventListener('click', () => { showOverlay(upgradeEl, false); setModalBack(false); showOverlay(menuEl, true); upgradeBackBtn.blur(); });
+deleteSaveBtn.addEventListener('click', () => {
+  if (confirm('确定要删除全部存档吗？\n金币、升级等级和最高分都会被清空，此操作不可撤销。')) {
+    store.set('twlj_gold', '0');
+    store.set('twlj_upg', '{}');
+    store.set('twlj_high', '0');
+    gold = 0; upg = {};
+    state.high = 0;
+    highVal.textContent = '0';
+    goldVal.textContent = '0';
+    renderUpgrade();
+  }
+});
 window.addEventListener('blur', () => { if (state.screen === 'playing') togglePause(); });
 
 /* ================= 主循环 ================= */
@@ -883,7 +900,7 @@ function loop(now) {
   updateFish(dt);
   updateDanger();
   updateWhale(dt);
-  updateCamera();
+  updateCamera(dt);
   updateParticles(dt);
   if (shake > 0) shake = Math.max(0, shake - dt);
   render();
