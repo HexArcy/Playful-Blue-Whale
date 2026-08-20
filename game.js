@@ -372,7 +372,7 @@ function spawnHook() {
     y: vy,
     targetY: whale.y + rand(-0.1, 0.1) * viewH,
     phase: 'warn',
-    t: 1.5
+    t: 2
   };
   sfx.hook();
 }
@@ -398,7 +398,8 @@ function updateHook(dt) {
     const dx = whale.x - hook.x, dy = whale.y - hook.y, d = Math.hypot(dx, dy);
     if (d < whale.r * 0.7 + 12) {
       state.lives--; shake = 0.6; whale.inv = 2.2; sfx.hurt();
-      addParts(hook.x, hook.y, '#ff5e5e', 14, 190, 0.5);
+      showBanner('被钩住了！', 1.2);
+      addParts(hook.x, hook.y, '#ff5e5e', 24, 190, 0.5);
       hook = null;
       if (state.lives <= 0) gameOver();
     }
@@ -618,23 +619,43 @@ function drawQuote() {
   ctx.fillText(quote.text, x + bw / 2, y + bh / 2 + 5);
   ctx.textAlign = 'left';
 }
+function hookScreenPos(wx, wy) {
+  return { x: (wx - whale.x) * zoom + W / 2, y: (wy - whale.y) * zoom + H / 2 };
+}
 function drawHook() {
   if (!hook || hook.phase === 'warn') return;
   if (hook.phase === 'reel' && Math.floor(performance.now() / 120) % 2 === 0) return;
   const hx = hook.x, hy = hook.y;
-  const lw = 3 / zoom, r = 14 / zoom;
-  ctx.strokeStyle = '#cfd6e4';
+  const lw = 4 / zoom, r = 18 / zoom;
+  // 落点警告圈（drop/stay 阶段持续显示）
+  if (hook.phase === 'drop' || hook.phase === 'stay') {
+    const a = 0.5 + 0.5 * Math.sin(performance.now() / 200);
+    ctx.strokeStyle = 'rgba(255,60,60,' + (0.4 + 0.3 * a) + ')';
+    ctx.lineWidth = 3 / zoom;
+    ctx.beginPath(); ctx.arc(hook.x, hook.targetY, r + 14, 0, 6.283); ctx.stroke();
+  }
+  // 吊线（红色）
+  ctx.strokeStyle = '#ff6b6b';
   ctx.lineWidth = lw;
   ctx.beginPath();
   ctx.moveTo(hx, vy);
   ctx.lineTo(hx, hy);
   ctx.stroke();
-  ctx.strokeStyle = '#e8eef6';
-  ctx.lineWidth = lw * 1.3;
+  // 弯钩（红色描边 + 白色内芯）
   ctx.lineCap = 'round';
+  ctx.strokeStyle = '#ff5252';
+  ctx.lineWidth = lw * 1.4;
   ctx.beginPath();
   ctx.arc(hx - r, hy, r, 0, Math.PI, false);
   ctx.stroke();
+  ctx.strokeStyle = '#ffc9c9';
+  ctx.lineWidth = lw * 0.8;
+  ctx.beginPath();
+  ctx.arc(hx - r, hy, r - lw, 0, Math.PI, false);
+  ctx.stroke();
+  // 钩尖 + 倒刺
+  ctx.strokeStyle = '#ff5252';
+  ctx.lineWidth = lw * 1.2;
   ctx.beginPath();
   ctx.moveTo(hx - r, hy);
   ctx.lineTo(hx - r, hy - r * 1.2);
@@ -645,15 +666,48 @@ function drawHook() {
   ctx.stroke();
 }
 function drawHookWarn() {
-  if (!hook || hook.phase !== 'warn') return;
+  if (!hook) return;
   const a = 0.5 + 0.5 * Math.sin(performance.now() / 100);
-  ctx.fillStyle = 'rgba(255,40,40,' + (0.3 * a) + ')';
-  ctx.fillRect(0, 0, W, 8);
-  ctx.fillStyle = 'rgba(255,90,90,' + (0.55 + 0.45 * a) + ')';
-  ctx.font = 'bold 22px "Microsoft YaHei",sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('鱼钩来袭！', W / 2, 50);
-  ctx.textAlign = 'left';
+  if (hook.phase === 'warn') {
+    // 顶部警示条（加宽渐变）
+    const g = ctx.createLinearGradient(0, 0, 0, 14);
+    g.addColorStop(0, 'rgba(255,40,40,' + (0.55 * a) + ')');
+    g.addColorStop(1, 'rgba(255,40,40,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, 14);
+    // 落点顶部箭头
+    const p = hookScreenPos(hook.x, hook.targetY);
+    const ax = clamp(p.x, 30, W - 30);
+    ctx.fillStyle = 'rgba(255,70,70,' + (0.75 + 0.25 * a) + ')';
+    ctx.beginPath();
+    ctx.moveTo(ax - 12, 14); ctx.lineTo(ax + 12, 14); ctx.lineTo(ax, 32);
+    ctx.closePath(); ctx.fill();
+    // 落点警告圈（脉冲 + 叉号）
+    const pr = 16 + Math.sin(performance.now() / 300) * 5;
+    ctx.strokeStyle = 'rgba(255,60,60,' + (0.5 + 0.5 * a) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(ax, p.y, pr, 0, 6.283); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ax - pr * 0.5, p.y - pr * 0.5); ctx.lineTo(ax + pr * 0.5, p.y + pr * 0.5);
+    ctx.moveTo(ax + pr * 0.5, p.y - pr * 0.5); ctx.lineTo(ax - pr * 0.5, p.y + pr * 0.5);
+    ctx.stroke();
+    // 大字号警告文字（红色光晕）
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,40,40,0.9)'; ctx.shadowBlur = 18;
+    ctx.fillStyle = 'rgba(255,90,90,' + (0.7 + 0.3 * a) + ')';
+    ctx.font = 'bold 28px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('鱼钩来袭！', W / 2, 64);
+    ctx.restore();
+    ctx.textAlign = 'left';
+  } else if (hook.phase === 'reel') {
+    // 收钩提示
+    ctx.fillStyle = 'rgba(255,90,90,' + (0.7 + 0.3 * a) + ')';
+    ctx.font = 'bold 18px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('钩子收回！', W / 2, 40);
+    ctx.textAlign = 'left';
+  }
 }
 function drawBanner() {
   if (!banner) return;
