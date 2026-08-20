@@ -109,14 +109,16 @@
     white-space: nowrap;
   }
 
-  #power.power {
-    color: #ffe66d;
+  #power.show {
     background: rgba(0, 0, 0, .35);
   }
 
-  #power.magnet {
+  #power .power {
+    color: #ffe66d;
+  }
+
+  #power .magnet {
     color: #ff9ec2;
-    background: rgba(0, 0, 0, .35);
   }
 
   #muteBtn {

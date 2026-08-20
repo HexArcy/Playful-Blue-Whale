@@ -37,14 +37,14 @@ function updateHUD() {
       comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
     } else comboEl.textContent = '';
   }
-  const powerList = [];
-  if (whale.powerT > 0) powerList.push('无敌 ' + Math.ceil(whale.powerT) + 's');
-  if (whale.magnetT > 0) powerList.push('磁铁 ' + Math.ceil(whale.magnetT) + 's');
-  const pTxt = powerList.join(' · ');
-  if (pTxt !== hudPower) {
-    hudPower = pTxt;
-    powerEl.textContent = pTxt;
-    powerEl.className = whale.powerT > 0 ? 'power' : (whale.magnetT > 0 ? 'magnet' : '');
+  // 无敌与磁铁同时生效时分开着色（各自保留本来的颜色）
+  let pHtml = '';
+  if (whale.powerT > 0) pHtml += '<span class="power">无敌 ' + Math.ceil(whale.powerT) + 's</span>';
+  if (whale.magnetT > 0) pHtml += (pHtml ? ' · ' : '') + '<span class="magnet">磁铁 ' + Math.ceil(whale.magnetT) + 's</span>';
+  if (pHtml !== hudPower) {
+    hudPower = pHtml;
+    powerEl.innerHTML = pHtml;
+    powerEl.className = pHtml ? 'show' : '';
   }
 }
 

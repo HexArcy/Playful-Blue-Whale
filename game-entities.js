@@ -49,7 +49,7 @@ function spawnFish() {
     x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.12, vy + viewH * 0.88),
     vx: dir * rand(60, 140) * (1 + Math.min(1, state.time / 240) * 0.7) * (pred ? 0.55 : 1),
     vy: rand(-15, 15), r, dir, pred, c1: c[0], c2: c[1],
-    wob: rand(0, 6.28), wobS: rand(4, 8), golden: false, harmless: false
+    wob: rand(0, 6.28), wobS: rand(4, 8), golden: false
   });
 }
 function spawnGolden() {
@@ -57,7 +57,7 @@ function spawnGolden() {
   const dir = fromLeft ? 1 : -1;
   fish.push({
     x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(55, 95), vy: rand(-10, 10),
-    r: rand(11, 15), dir, pred: false, c1: '#ffd166', c2: '#f59f1c', wob: 0, wobS: 6, golden: true, harmless: false
+    r: rand(11, 15), dir, pred: false, c1: '#ffd166', c2: '#f59f1c', wob: 0, wobS: 6, golden: true
   });
 }
 function spawnGem() {
@@ -65,7 +65,7 @@ function spawnGem() {
   const dir = fromLeft ? 1 : -1;
   fish.push({
     x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 90), vy: rand(-10, 10),
-    r: rand(12, 16), dir, pred: false, c1: '#5fe37c', c2: '#1f9e4d', wob: 0, wobS: 5, golden: false, gem: true, harmless: false
+    r: rand(12, 16), dir, pred: false, c1: '#5fe37c', c2: '#1f9e4d', wob: 0, wobS: 5, golden: false, gem: true
   });
 }
 function spawnStar() {
@@ -73,7 +73,7 @@ function spawnStar() {
   const dir = fromLeft ? 1 : -1;
   fish.push({
     x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
-    r: rand(13, 17), dir, pred: false, c1: '#ffe66d', c2: '#f5a623', wob: 0, wobS: 5, golden: false, gem: false, star: true, harmless: false
+    r: rand(13, 17), dir, pred: false, c1: '#ffe66d', c2: '#f5a623', wob: 0, wobS: 5, golden: false, gem: false, star: true
   });
 }
 function spawnMagnet() {
@@ -81,7 +81,7 @@ function spawnMagnet() {
   const dir = fromLeft ? 1 : -1;
   fish.push({
     x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
-    r: rand(12, 16), dir, pred: false, c1: '#ff6b9d', c2: '#c2255c', wob: 0, wobS: 5, golden: false, gem: false, magnet: true, harmless: false
+    r: rand(12, 16), dir, pred: false, c1: '#ff6b9d', c2: '#c2255c', wob: 0, wobS: 5, golden: false, gem: false, magnet: true
   });
 }
 

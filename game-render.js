@@ -3,16 +3,17 @@ function drawParticles() {
     const a = clamp(p.life / p.max, 0, 1);
     if (p.text) {
       ctx.globalAlpha = a; ctx.fillStyle = p.color;
-      ctx.font = 'bold ' + (p.size || 15) + 'px "Microsoft YaHei",sans-serif'; ctx.textAlign = 'center';
+      // 字号按视角缩放换算，保证屏幕上的分数飘字大小恒定
+      ctx.font = 'bold ' + (p.size || 15) / zoom + 'px "Microsoft YaHei",sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(p.text, p.x, p.y); ctx.globalAlpha = 1; continue;
     }
     if (p.bub) {
-      ctx.globalAlpha = a * 0.6; ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.stroke();
+      ctx.globalAlpha = a * 0.6; ctx.strokeStyle = p.color; ctx.lineWidth = 1.5 / zoom;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r / zoom, 0, 6.283); ctx.stroke();
     }
     else {
       ctx.globalAlpha = a; ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r / zoom, 0, 6.283); ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
@@ -212,22 +213,46 @@ function drawQuote() {
   if (!quote) return;
   const sx = W / 2, sy = H / 2;
   const rs = whale.r * zoom;
-  const by = sy - rs * 1.9 - 24;
-  ctx.font = '13px "Microsoft YaHei",sans-serif';
+  const by = sy - rs * 1.9 - 30;
+  ctx.font = 'bold 14px "Microsoft YaHei",sans-serif';
   const tw = ctx.measureText(quote.text).width;
-  const bw = tw + 22, bh = 28;
-  const x = clamp(sx - bw / 2, 4, W - bw - 4);
-  const y = clamp(by, 30, H - 30);
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  const bw = tw + 32, bh = 36;
+  const x = clamp(sx - bw / 2, 8, W - bw - 8);
+  const y = clamp(by, 34, H - 44);
+  const cr = 16;
+  const tx = clamp(sx, x + cr, x + bw - cr); // 尾巴尖对准鲸鱼
+  // 气泡主体 + 尾巴（合成一个路径，指向下方鲸鱼）
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, 10); else ctx.rect(x, y, bw, bh);
-  const tx = clamp(sx, x + 10, x + bw - 10);
-  ctx.moveTo(tx, y + bh);
-  ctx.lineTo(tx - 5, y + bh + 7);
-  ctx.lineTo(tx + 5, y + bh + 7);
-  ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#123a6e'; ctx.textAlign = 'center';
-  ctx.fillText(quote.text, x + bw / 2, y + bh / 2 + 5);
+  if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, cr); else ctx.rect(x, y, bw, bh);
+  ctx.moveTo(tx - 9, y + bh - 3);
+  ctx.quadraticCurveTo(tx, y + bh + 12, tx + 9, y + bh - 3);
+  ctx.closePath();
+  // 柔和投影
+  ctx.shadowColor = 'rgba(0,25,70,0.30)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  // 白→浅蓝渐变主体
+  const g = ctx.createLinearGradient(x, y, x, y + bh);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(1, '#e6f1ff');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  // 浅蓝描边
+  ctx.strokeStyle = 'rgba(46,116,216,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // 顶部高光
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + cr * 1.4, y + 7);
+  ctx.lineTo(x + bw - cr * 1.4, y + 7);
+  ctx.stroke();
+  // 文字
+  ctx.fillStyle = '#123a6e';
+  ctx.textAlign = 'center';
+  ctx.fillText(quote.text, x + bw / 2, y + bh / 2 + 6);
   ctx.textAlign = 'left';
 }
 function hookScreenPos(wx, wy) {
@@ -348,6 +373,24 @@ function drawVignette() {
     ctx.globalAlpha = 1;
   }
 }
+function drawMagnetAura() {
+  if (whale.magnetT <= 0 || state.screen !== 'playing') return;
+  const range = (320 + upgEffect('magnetRange')) / zoom;
+  const t = performance.now() / 1000;
+  const a = 0.22 + 0.12 * Math.sin(t * 4);
+  // 淡粉色填充（从鲸鱼边缘到吸附半径渐隐）
+  const g = ctx.createRadialGradient(whale.x, whale.y, whale.r, whale.x, whale.y, range);
+  g.addColorStop(0, 'rgba(255,107,157,0.10)');
+  g.addColorStop(1, 'rgba(255,107,157,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(whale.x, whale.y, range, 0, 6.283); ctx.fill();
+  // 粉色虚线光环，随吸附效果脉动
+  ctx.strokeStyle = 'rgba(255,107,157,' + (0.35 + 0.25 * a) + ')';
+  ctx.lineWidth = 3 / zoom;
+  ctx.setLineDash([16 / zoom, 12 / zoom]);
+  ctx.beginPath(); ctx.arc(whale.x, whale.y, range, 0, 6.283); ctx.stroke();
+  ctx.setLineDash([]);
+}
 function render() {
   ctx.clearRect(0, 0, W, H);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -356,6 +399,7 @@ function render() {
   const sx = shake > 0 ? rand(-1, 1) * shake * 9 : 0;
   const sy = shake > 0 ? rand(-1, 1) * shake * 9 : 0;
   ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, dpr * (W / 2 - whale.x * zoom + sx), dpr * (H / 2 - whale.y * zoom + sy));
+  drawMagnetAura();
   drawFishAll();
   drawParticles();
   drawWhaleC();

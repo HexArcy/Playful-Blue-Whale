@@ -2,8 +2,9 @@ function updateParticles(dt) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life -= dt;
     if (p.life <= 0) { parts.splice(i, 1); continue; }
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    if (p.bub) { p.vy -= 30 * dt; p.x += Math.sin(p.life * 6) * 14 * dt; }
+    // 粒子速度按视角缩放换算，保证屏幕上效果恒定（变大后分数飘字、拖尾泡泡不缩水）
+    p.x += p.vx * dt / zoom; p.y += p.vy * dt / zoom;
+    if (p.bub) { p.vy -= 30 * dt / zoom; p.x += Math.sin(p.life * 6) * 14 * dt / zoom; }
   }
 }
 /* ================= 更新 ================= */
@@ -15,14 +16,16 @@ function updateDecor(dt) {
 function updateFish(dt) {
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
-    f.x += f.vx * dt; f.y += f.vy * dt; f.wob += dt * f.wobS;
+    // 鱼速按视角缩放换算，保证屏幕上移动速度恒定（鲸鱼变大、镜头拉远后不显得变慢）
+    f.x += f.vx * dt / zoom; f.y += f.vy * dt / zoom; f.wob += dt * f.wobS;
     if (f.x < vx - 2000 || f.x > vx + viewW + 2000 || f.y < vy - 2000 || f.y > vy + viewH + 2000) { fish.splice(i, 1); continue; }
     if (state.screen === 'playing' && whale.magnetT > 0 && !f.pred && f.r < whale.r * 0.88) {
       const mx = whale.x - f.x, my = whale.y - f.y, md = Math.hypot(mx, my);
-      const range = 320 + whale.r * 2 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
+      // 磁吸范围/速度按视角缩放换算，保证屏幕上吸附半径与吸附速度恒定（随鲸鱼变大、镜头拉远后不缩水）
+      const range = (320 + upgEffect('magnetRange')) / zoom, spd = (220 + upgEffect('magnetSpeed')) / zoom;
       if (md < range && md > 1) { f.x += mx / md * spd * dt; f.y += my / md * spd * dt; }
     }
-    if (state.screen === 'playing' && !f.harmless && whale.inv <= 0) {
+    if (state.screen === 'playing' && whale.inv <= 0) {
       const dx = whale.x - f.x, dy = whale.y - f.y;
       const er = (f.golden || f.gem || f.star || f.magnet) ? f.r / zoom : f.r;
       const rr = whale.r * 0.75 + er * 0.85;
@@ -56,7 +59,6 @@ function hurtBy(i) {
   const f = fish[i];
   state.lives--; shake = 0.6; whale.inv = 2.2; sfx.hurt();
   addParts(f.x, f.y, '#ff5e5e', 14, 190, 0.5);
-  f.harmless = true;
   const away = f.x > whale.x ? 1 : -1;
   f.vx = away * rand(150, 230); f.vy = -rand(90, 150);
   if (state.lives <= 0) gameOver();
