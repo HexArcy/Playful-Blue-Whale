@@ -249,7 +249,7 @@ function updateFish(dt) {
     if (f.x < vx - 2000 || f.x > vx + viewW + 2000 || f.y < vy - 2000 || f.y > vy + viewH + 2000) { fish.splice(i, 1); continue; }
     if (state.screen === 'playing' && whale.magnetT > 0 && !f.pred && f.r < whale.r * 0.88) {
       const mx = whale.x - f.x, my = whale.y - f.y, md = Math.hypot(mx, my);
-      const range = 320 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
+      const range = 320 + whale.r * 2 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
       if (md < range && md > 1) { f.x += mx / md * spd * dt; f.y += my / md * spd * dt; }
     }
     if (state.screen === 'playing' && !f.harmless && whale.inv <= 0) {
@@ -742,12 +742,14 @@ function updateHUD() {
       comboEl.classList.remove('pop'); void comboEl.offsetWidth; comboEl.classList.add('pop');
     } else comboEl.textContent = '';
   }
-  const pNow = whale.powerT > 0 ? ('power|' + Math.ceil(whale.powerT)) : (whale.magnetT > 0 ? ('magnet|' + Math.ceil(whale.magnetT)) : '');
-  if (pNow !== hudPower) {
-    hudPower = pNow;
-    if (whale.powerT > 0) { powerEl.textContent = '无敌 ' + Math.ceil(whale.powerT) + 's'; powerEl.className = 'power'; }
-    else if (whale.magnetT > 0) { powerEl.textContent = '磁铁 ' + Math.ceil(whale.magnetT) + 's'; powerEl.className = 'magnet'; }
-    else { powerEl.textContent = ''; powerEl.className = ''; }
+  const powerList = [];
+  if (whale.powerT > 0) powerList.push('无敌 ' + Math.ceil(whale.powerT) + 's');
+  if (whale.magnetT > 0) powerList.push('磁铁 ' + Math.ceil(whale.magnetT) + 's');
+  const pTxt = powerList.join(' · ');
+  if (pTxt !== hudPower) {
+    hudPower = pTxt;
+    powerEl.textContent = pTxt;
+    powerEl.className = whale.powerT > 0 ? 'power' : (whale.magnetT > 0 ? 'magnet' : '');
   }
 }
 
