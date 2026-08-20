@@ -254,7 +254,8 @@ function updateFish(dt) {
     }
     if (state.screen === 'playing' && !f.harmless && whale.inv <= 0) {
       const dx = whale.x - f.x, dy = whale.y - f.y;
-      const rr = whale.r * 0.75 + f.r * 0.85;
+      const er = (f.golden || f.gem || f.star || f.magnet) ? f.r / zoom : f.r;
+      const rr = whale.r * 0.75 + er * 0.85;
       if (dx * dx + dy * dy < rr * rr) {
         if (f.golden || f.gem || f.star || f.magnet || whale.powerT > 0 || f.r < whale.r * 0.88) eatFish(i); else hurtBy(i);
       }
@@ -506,7 +507,7 @@ function drawFishAll() {
   for (const f of fish) {
     ctx.save(); ctx.translate(f.x, f.y);
     const dir = f.vx >= 0 ? 1 : -1; ctx.scale(dir, 1);
-    const r = f.r;
+    const r = (f.golden || f.gem || f.star || f.magnet) ? f.r / zoom : f.r;
     ctx.rotate(Math.sin(f.wob) * 0.18);
     if (f.gem) { drawGemFish(f, r); ctx.restore(); continue; }
     if (f.star) { drawStarFish(f, r); ctx.restore(); continue; }
