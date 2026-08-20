@@ -160,7 +160,7 @@ function spawnFish() {
   if (whale.r > 38 && Math.random() < 0.1 && r >= whale.r * 0.95) { r = whale.r * rand(1.15, 1.45); pred = true; }
   const c = PALETTE[randInt(0, PALETTE.length - 1)];
   fish.push({
-    x: fromLeft ? vx - 60 : vx + viewW + 60, y: rand(vy + viewH * 0.12, vy + viewH * 0.88),
+    x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.12, vy + viewH * 0.88),
     vx: dir * rand(60, 140) * (1 + Math.min(1, state.time / 240) * 0.7) * (pred ? 0.55 : 1),
     vy: rand(-15, 15), r, dir, pred, c1: c[0], c2: c[1],
     wob: rand(0, 6.28), wobS: rand(4, 8), golden: false, harmless: false
@@ -170,7 +170,7 @@ function spawnGolden() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(55, 95), vy: rand(-10, 10),
+    x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(55, 95), vy: rand(-10, 10),
     r: rand(11, 15), dir, pred: false, c1: '#ffd166', c2: '#f59f1c', wob: 0, wobS: 6, golden: true, harmless: false
   });
 }
@@ -178,7 +178,7 @@ function spawnGem() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 90), vy: rand(-10, 10),
+    x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 90), vy: rand(-10, 10),
     r: rand(12, 16), dir, pred: false, c1: '#5fe37c', c2: '#1f9e4d', wob: 0, wobS: 5, golden: false, gem: true, harmless: false
   });
 }
@@ -186,7 +186,7 @@ function spawnStar() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
+    x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
     r: rand(13, 17), dir, pred: false, c1: '#ffe66d', c2: '#f5a623', wob: 0, wobS: 5, golden: false, gem: false, star: true, harmless: false
   });
 }
@@ -194,7 +194,7 @@ function spawnMagnet() {
   const fromLeft = Math.random() < 0.5;
   const dir = fromLeft ? 1 : -1;
   fish.push({
-    x: fromLeft ? vx - 40 : vx + viewW + 40, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
+    x: fromLeft ? vx - 250 : vx + viewW + 250, y: rand(vy + viewH * 0.15, vy + viewH * 0.85), vx: dir * rand(50, 85), vy: rand(-10, 10),
     r: rand(12, 16), dir, pred: false, c1: '#ff6b9d', c2: '#c2255c', wob: 0, wobS: 5, golden: false, gem: false, magnet: true, harmless: false
   });
 }
@@ -246,7 +246,7 @@ function updateFish(dt) {
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
     f.x += f.vx * dt; f.y += f.vy * dt; f.wob += dt * f.wobS;
-    if (f.x < vx - 160 || f.x > vx + viewW + 160 || f.y < vy - 160 || f.y > vy + viewH + 160) { fish.splice(i, 1); continue; }
+    if (f.x < vx - 500 || f.x > vx + viewW + 500 || f.y < vy - 500 || f.y > vy + viewH + 500) { fish.splice(i, 1); continue; }
     if (state.screen === 'playing' && whale.magnetT > 0 && !f.pred && f.r < whale.r * 0.88) {
       const mx = whale.x - f.x, my = whale.y - f.y, md = Math.hypot(mx, my);
       const range = 320 + upgEffect('magnetRange'), spd = 220 + upgEffect('magnetSpeed');
@@ -595,23 +595,28 @@ function drawWhaleC() {
   ctx.fillStyle = '#123a6e'; ctx.beginPath(); ctx.arc(r * 0.76, -r * 0.18, r * 0.09, 0, 6.283); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(r * 0.79, -r * 0.21, r * 0.035, 0, 6.283); ctx.fill();
   ctx.restore();
-  if (quote) {
-    const bx = w.x, by = w.y - r * 1.9 - 24;
-    ctx.font = '13px "Microsoft YaHei",sans-serif';
-    const tw = ctx.measureText(quote.text).width;
-    const bw = tw + 22, bh = 28, x = clamp(bx - bw / 2, 4, W - bw - 4), y = clamp(by, 30, H - 30);
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, 10); else ctx.rect(x, y, bw, bh);
-    const tx = clamp(bx, x + 10, x + bw - 10);
-    ctx.moveTo(tx, y + bh);
-    ctx.lineTo(tx - 5, y + bh + 7);
-    ctx.lineTo(tx + 5, y + bh + 7);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#123a6e'; ctx.textAlign = 'center';
-    ctx.fillText(quote.text, x + bw / 2, y + bh / 2 + 5);
-    ctx.textAlign = 'left';
-  }
+}
+function drawQuote() {
+  if (!quote) return;
+  const sx = W / 2, sy = H / 2;
+  const rs = whale.r * zoom;
+  const by = sy - rs * 1.9 - 24;
+  ctx.font = '13px "Microsoft YaHei",sans-serif';
+  const tw = ctx.measureText(quote.text).width;
+  const bw = tw + 22, bh = 28;
+  const x = clamp(sx - bw / 2, 4, W - bw - 4);
+  const y = clamp(by, 30, H - 30);
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, bw, bh, 10); else ctx.rect(x, y, bw, bh);
+  const tx = clamp(sx, x + 10, x + bw - 10);
+  ctx.moveTo(tx, y + bh);
+  ctx.lineTo(tx - 5, y + bh + 7);
+  ctx.lineTo(tx + 5, y + bh + 7);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#123a6e'; ctx.textAlign = 'center';
+  ctx.fillText(quote.text, x + bw / 2, y + bh / 2 + 5);
+  ctx.textAlign = 'left';
 }
 function drawHook() {
   if (!hook || hook.phase === 'warn') return;
@@ -695,6 +700,7 @@ function render() {
   drawVignette();
   drawHookWarn();
   drawBanner();
+  drawQuote();
 }
 
 /* ================= HUD ================= */
